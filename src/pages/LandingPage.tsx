@@ -287,7 +287,7 @@ export default function LandingPage() {
             <div className="bg-primary-600 rounded-3xl p-7 inline-block w-full max-w-[300px]">
               <p className="text-6xl font-black text-white mb-2 tracking-tight">16 min</p>
               <p className="text-primary-200 text-sm leading-relaxed">
-                es el tiempo promedio de una consulta médica. Entre 4 y 8 de esos minutos se van solo en escribir la nota.
+                es el tiempo promedio de una consulta médica. Entre 5 y 10 de esos minutos se van solo en escribir la nota.
               </p>
             </div>
             <Link to="/registro" className="inline-flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white font-bold px-8 py-4 rounded-2xl text-base transition-colors shadow-lg shadow-primary-200">
