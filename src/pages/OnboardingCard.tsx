@@ -84,6 +84,7 @@ export default function OnboardingCard() {
         const now = new Date().toISOString()
         const trialEndAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString()
 
+        // Core subscription fields — columns are guaranteed to exist in Supabase
         await updateProfile({
           subscription_status: 'trial',
           wompi_customer_id: String(paymentSourceId),
@@ -92,9 +93,14 @@ export default function OnboardingCard() {
           trial_start_at: now,
           trial_end_at: trialEndAt,
           trial_ends_at: trialEndAt,
-          trial_notes_limit: 15,
-          trial_notes_used: 0,
         })
+
+        // Trial notes counters — separate call so a missing-column DB error
+        // doesn't prevent subscription_status from being saved.
+        // Run the migration in supabase.ts comments if this fails.
+        try {
+          await updateProfile({ trial_notes_limit: 15, trial_notes_used: 0 })
+        } catch { /* non-critical: canRecord() uses safe defaults */ }
 
         setStage('success')
         setTimeout(() => navigate('/dashboard', { replace: true }), 2000)

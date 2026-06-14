@@ -205,15 +205,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function updateProfile(data: Partial<UserProfile>) {
     if (!user) return
-    const updated = profile ? { ...profile, ...data } : null
-    setProfile(updated)
+
+    // Functional update prevents stale-closure issues when called multiple times in sequence
+    let snapshot: UserProfile | null = null
+    setProfile(prev => {
+      snapshot = prev ? { ...prev, ...data } : null
+      return snapshot
+    })
 
     if (!isSupabaseConfigured) {
-      if (updated) localStorage.setItem('dictia_mock_profile', JSON.stringify(updated))
+      if (snapshot) localStorage.setItem('dictia_mock_profile', JSON.stringify(snapshot))
       return
     }
 
-    await supabase.from('user_profiles').update(data).eq('id', user.id)
+    const { error } = await supabase.from('user_profiles').update(data).eq('id', user.id)
+    if (error) throw new Error(error.message)
   }
 
   function canRecord(): CanRecordResult {
@@ -278,7 +284,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (isTrial) {
       const trialUpdate: Partial<UserProfile> = { trial_notes_used: newNotesUsed }
       if (newNotesUsed >= notesLimit) trialUpdate.subscription_status = 'expired'
-      await supabase.from('user_profiles').update(trialUpdate).eq('id', user?.id ?? '')
+      const { error: trialErr } = await supabase.from('user_profiles').update(trialUpdate).eq('id', user?.id ?? '')
+      if (trialErr) console.error('[Dictia] trial notes update failed:', trialErr.message)
     }
   }
 

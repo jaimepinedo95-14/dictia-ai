@@ -177,6 +177,8 @@ create table public.user_profiles (
 -- alter table public.user_profiles add column if not exists wompi_customer_id text;
 -- alter table public.user_profiles add column if not exists wompi_subscription_id text;
 -- alter table public.user_profiles add column if not exists card_registered_at timestamptz;
+-- alter table public.user_profiles add column if not exists trial_notes_limit integer default 15;
+-- alter table public.user_profiles add column if not exists trial_notes_used integer default 0;
 -- Para usuarios existentes que ya estaban activos antes de este sistema:
 -- update public.user_profiles set subscription_status = 'active' where created_at < '2026-06-14';
 
