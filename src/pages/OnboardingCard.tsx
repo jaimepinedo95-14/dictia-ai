@@ -91,8 +91,9 @@ export default function OnboardingCard() {
           card_registered_at: now,
           trial_start_at: now,
           trial_end_at: trialEndAt,
-          // Keep plan = free_trial while in trial so canRecord() allows unlimited usage
           trial_ends_at: trialEndAt,
+          trial_notes_limit: 15,
+          trial_notes_used: 0,
         })
 
         setStage('success')
@@ -139,7 +140,7 @@ export default function OnboardingCard() {
             <CheckCircle size={40} className="text-emerald-500" />
           </div>
           <h2 className="text-2xl font-bold text-slate-900 mb-2">¡Todo listo!</h2>
-          <p className="text-slate-500 mb-2">Tus 10 notas de prueba gratis están activas.</p>
+          <p className="text-slate-500 mb-2">Tus 3 días / 15 notas de prueba gratis están activos.</p>
           <p className="text-sm text-slate-400">
             El plan <strong className="text-slate-700">{planName}</strong> se activará luego de usar tus notas de prueba.
           </p>
@@ -205,7 +206,7 @@ export default function OnboardingCard() {
           </Link>
           <h1 className="text-2xl font-bold text-slate-900 mb-2">Registra tu tarjeta</h1>
           <p className="text-slate-500 text-sm">
-            No se realizará ningún cobro durante tus 10 notas de prueba.
+            No se realizará ningún cobro durante 3 días o 15 notas de prueba.
           </p>
         </div>
 
@@ -217,7 +218,7 @@ export default function OnboardingCard() {
                 <p className="text-xs font-bold text-primary-600 uppercase tracking-wider mb-1">Plan seleccionado</p>
                 <p className="font-bold text-slate-900">{planName}</p>
                 <p className="text-sm text-slate-500 mt-0.5">
-                  {formatCOP(planPrice)}/mes · luego de tus 10 notas gratis
+                  {formatCOP(planPrice)}/mes · luego de tus 3 días / 15 notas gratis
                 </p>
               </div>
               <Link
@@ -232,7 +233,7 @@ export default function OnboardingCard() {
           {/* Trust points */}
           <ul className="space-y-2 mb-6">
             {[
-              'Las primeras 10 notas son completamente gratis',
+              '3 días o 15 notas gratis — lo que ocurra primero',
               'Cancela cuando quieras sin ningún cargo',
               'Pago procesado de forma segura por Wompi (Bancolombia)',
               'No almacenamos datos de tu tarjeta en nuestros servidores',
@@ -267,6 +268,8 @@ export default function OnboardingCard() {
                     trial_start_at: new Date().toISOString(),
                     trial_end_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
                     trial_ends_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+                    trial_notes_limit: 15,
+                    trial_notes_used: 0,
                   })
                   setStage('success')
                   setTimeout(() => navigate('/dashboard', { replace: true }), 1500)

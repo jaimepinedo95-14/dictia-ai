@@ -219,12 +219,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   function canRecord(): CanRecordResult {
     if (!profile) return { allowed: false, reason: 'No hay sesión activa' }
 
-    if (profile.plan === 'free_trial') {
-      if (profile.trial_ends_at && new Date(profile.trial_ends_at) < new Date()) {
-        return {
-          allowed: false,
-          reason: 'Tu período de prueba gratuita ha terminado. Activa un plan para continuar.',
-        }
+    const isTrial = profile.subscription_status === 'trial' || profile.plan === 'free_trial'
+
+    if (isTrial) {
+      const endAt = profile.trial_end_at ?? profile.trial_ends_at
+      if (endAt && new Date(endAt) < new Date()) {
+        return { allowed: false, reason: 'Tu período de prueba ha terminado. Activa tu plan para continuar.' }
+      }
+      const notesUsed = profile.trial_notes_used ?? 0
+      const notesLimit = profile.trial_notes_limit ?? 15
+      if (notesUsed >= notesLimit) {
+        return { allowed: false, reason: `Has usado tus ${notesLimit} notas de prueba. Activa tu plan para continuar.` }
       }
       return { allowed: true }
     }
@@ -251,15 +256,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function incrementConsultations() {
     if (!profile) return
     const newCount = profile.consultations_used + 1
-    setProfile(prev => prev ? { ...prev, consultations_used: newCount } : null)
+    const isTrial = profile.subscription_status === 'trial' || profile.plan === 'free_trial'
+    const newNotesUsed = (profile.trial_notes_used ?? 0) + 1
+    const notesLimit = profile.trial_notes_limit ?? 15
+
+    const stateUpdate: Partial<UserProfile> = { consultations_used: newCount }
+    if (isTrial) {
+      stateUpdate.trial_notes_used = newNotesUsed
+      if (newNotesUsed >= notesLimit) stateUpdate.subscription_status = 'expired'
+    }
+
+    setProfile(prev => prev ? { ...prev, ...stateUpdate } : null)
 
     if (!isSupabaseConfigured) {
-      const updated = profile ? { ...profile, consultations_used: newCount } : null
+      const updated = profile ? { ...profile, ...stateUpdate } : null
       if (updated) localStorage.setItem('dictia_mock_profile', JSON.stringify(updated))
       return
     }
 
     await incrementConsultationsUsed(user?.id ?? '', profile.consultations_used)
+    if (isTrial) {
+      const trialUpdate: Partial<UserProfile> = { trial_notes_used: newNotesUsed }
+      if (newNotesUsed >= notesLimit) trialUpdate.subscription_status = 'expired'
+      await supabase.from('user_profiles').update(trialUpdate).eq('id', user?.id ?? '')
+    }
   }
 
   return (

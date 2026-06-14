@@ -23,6 +23,9 @@ export default function TrialBanner() {
   const daysLeft = Math.max(0, Math.ceil(msLeft / (1000 * 60 * 60 * 24)))
   const isLastDay = daysLeft <= 1
   const planName = PLAN_NAMES[profile.plan_seleccionado ?? ''] ?? 'seleccionado'
+  const notesUsed = profile.trial_notes_used ?? 0
+  const notesLimit = profile.trial_notes_limit ?? 15
+  const notesLeft = Math.max(0, notesLimit - notesUsed)
 
   const formattedDate = trialEndDate?.toLocaleDateString('es-CO', {
     weekday: 'long', day: 'numeric', month: 'long',
@@ -47,12 +50,14 @@ export default function TrialBanner() {
         <Zap size={15} className="flex-shrink-0 opacity-90" />
         <p className="flex-1 text-xs sm:text-sm leading-snug">
           {daysLeft === 0 ? (
-            <>Hoy vence tu prueba gratuita. Tu plan <strong>{planName}</strong> se activa hoy.</>
+            <>Hoy vence tu prueba. Tu plan <strong>{planName}</strong> se activa hoy. <span className="opacity-75">({notesLeft} nota{notesLeft !== 1 ? 's' : ''} restante{notesLeft !== 1 ? 's' : ''})</span></>
           ) : (
             <>
-              Prueba gratuita: {' '}
-              <strong>{daysLeft} día{daysLeft !== 1 ? 's' : ''} restante{daysLeft !== 1 ? 's' : ''}</strong>.
-              {' '}Tu plan <strong>{planName}</strong> se activará el <strong>{formattedDate}</strong>.
+              Prueba activa: {' '}
+              <strong>{daysLeft} día{daysLeft !== 1 ? 's' : ''}</strong>
+              {' '}·{' '}
+              <strong>{notesLeft}/{notesLimit} notas</strong>.
+              {' '}Plan <strong>{planName}</strong> · activación el <strong>{formattedDate}</strong>.
             </>
           )}
         </p>

@@ -60,6 +60,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!user) return <Navigate to="/login" replace />
   if (ipBlocked) return <IpBlockScreen />
+  if (profile?.role === 'super_admin') return <>{children}</>
 
   const status = profile?.subscription_status
   const path = location.pathname

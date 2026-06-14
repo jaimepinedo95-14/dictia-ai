@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { clsx } from 'clsx'
 import {
   LayoutDashboard, Mic, ClipboardList, Users, Settings,
-  CreditCard, LogOut, Menu, X, ChevronRight, Smartphone,
+  CreditCard, LogOut, Menu, X, ChevronRight, Smartphone, ShieldCheck,
 } from 'lucide-react'
 import Logo from './Logo'
 import TrialBanner from './TrialBanner'
@@ -66,12 +66,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <Logo size="md" />
       </div>
 
-      {trialDaysLeft !== null && profile?.plan === 'free_trial' && (
+      {profile?.subscription_status === 'trial' && (
         <div className="mx-3 mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
           <p className="text-xs font-semibold text-amber-700">Período de prueba</p>
           <p className="text-xs text-amber-600 mt-0.5">
-            {trialDaysLeft === 0 ? 'Vence hoy' : `${trialDaysLeft} día${trialDaysLeft !== 1 ? 's' : ''} restante${trialDaysLeft !== 1 ? 's' : ''}`}
+            {trialDaysLeft === 0 ? 'Vence hoy' : `${trialDaysLeft ?? 0} día${(trialDaysLeft ?? 0) !== 1 ? 's' : ''} restante${(trialDaysLeft ?? 0) !== 1 ? 's' : ''}`}
           </p>
+          {profile.trial_notes_limit && (
+            <p className="text-xs text-amber-600 mt-0.5">
+              {Math.max(0, profile.trial_notes_limit - (profile.trial_notes_used ?? 0))}/{profile.trial_notes_limit} notas disponibles
+            </p>
+          )}
           <button
             onClick={() => navigate('/facturacion')}
             className="mt-2 w-full text-xs font-semibold text-white bg-amber-500 hover:bg-amber-600 rounded-lg py-1.5 transition-colors"
@@ -103,6 +108,21 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             )}
           </NavLink>
         ))}
+        {profile?.role === 'super_admin' && (
+          <NavLink
+            to="/admin/super"
+            onClick={() => setMobileOpen(false)}
+            className={({ isActive }) => clsx(
+              'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150',
+              isActive
+                ? 'bg-slate-800 text-white shadow-md shadow-slate-200'
+                : 'text-slate-400 hover:bg-slate-100 hover:text-slate-700'
+            )}
+          >
+            <ShieldCheck size={18} />
+            Panel Admin
+          </NavLink>
+        )}
       </nav>
 
       <div className="p-3 border-t border-slate-100">

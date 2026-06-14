@@ -77,7 +77,7 @@ export default function OnboardingPlan() {
           </div>
           <h1 className="text-3xl font-bold text-slate-900 mb-2">Elige tu plan</h1>
           <p className="text-slate-500">
-            10 notas de prueba completamente gratis. Cancela cuando quieras.
+            3 días o 15 notas gratis — lo que ocurra primero. Sin cargo hasta entonces.
           </p>
         </div>
 
@@ -140,7 +140,7 @@ export default function OnboardingPlan() {
                 {/* Free trial badge */}
                 <div className={`mt-4 pt-4 border-t text-center ${isSelected && plan.highlight ? 'border-primary-500' : 'border-slate-100'}`}>
                   <p className={`text-xs font-semibold ${isSelected && plan.highlight ? 'text-primary-200' : 'text-emerald-600'}`}>
-                    🎯 10 notas gratis, luego {formatCOP(plan.price)}/mes
+                    🎯 3 días o 15 notas gratis, luego {formatCOP(plan.price)}/mes
                   </p>
                 </div>
               </button>

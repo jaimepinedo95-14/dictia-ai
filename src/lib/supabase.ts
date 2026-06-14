@@ -45,6 +45,8 @@ export type UserProfile = {
   plan_seleccionado?: string | null
   trial_start_at?: string | null
   trial_end_at?: string | null
+  trial_notes_limit?: number | null
+  trial_notes_used?: number | null
   wompi_customer_id?: string | null
   wompi_subscription_id?: string | null
   card_registered_at?: string | null
