@@ -162,7 +162,7 @@ export const PLANS = [
     name: 'Pro',
     price: 99900,
     currency: 'COP',
-    consultations: 900,
+    consultations: 800,
     period: 'mes',
     features: ['Todo el plan Avanzado', 'Aprendizaje de estilo del médico', 'Acceso anticipado a nuevas funciones', 'Soporte directo por WhatsApp'],
     cta: 'Empezar gratis',

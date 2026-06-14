@@ -16,9 +16,9 @@ const PLAN_NAMES: Record<string, string> = {
 
 const PLAN_PRICES: Record<string, number> = {
   basic: 39900,
-  standard: 49900,
-  advanced: 64900,
-  pro: 89900,
+  standard: 54900,
+  advanced: 69900,
+  pro: 99900,
 }
 
 function formatCOP(amount: number) {
@@ -39,8 +39,7 @@ export default function OnboardingCard() {
 
   const planId = profile?.plan_seleccionado ?? 'standard'
   const planName = PLAN_NAMES[planId] ?? planId
-  const planPrice = PLAN_PRICES[planId] ?? 49900
-  const trialEnd = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
+  const planPrice = PLAN_PRICES[planId] ?? 54900
 
   // ── Handle redirect back from Wompi ───────────────────────────────────────────
   useEffect(() => {
@@ -140,12 +139,9 @@ export default function OnboardingCard() {
             <CheckCircle size={40} className="text-emerald-500" />
           </div>
           <h2 className="text-2xl font-bold text-slate-900 mb-2">¡Todo listo!</h2>
-          <p className="text-slate-500 mb-2">Tu prueba gratuita de 3 días está activa.</p>
+          <p className="text-slate-500 mb-2">Tus 10 notas de prueba gratis están activas.</p>
           <p className="text-sm text-slate-400">
-            El plan <strong className="text-slate-700">{planName}</strong> se activará el{' '}
-            <strong className="text-slate-700">
-              {trialEnd.toLocaleDateString('es-CO', { day: 'numeric', month: 'long' })}
-            </strong>.
+            El plan <strong className="text-slate-700">{planName}</strong> se activará luego de usar tus notas de prueba.
           </p>
           <div className="mt-6 flex items-center justify-center gap-2 text-slate-400 text-sm">
             <div className="w-4 h-4 border-2 border-primary-600 border-t-transparent rounded-full animate-spin" />
@@ -209,7 +205,7 @@ export default function OnboardingCard() {
           </Link>
           <h1 className="text-2xl font-bold text-slate-900 mb-2">Registra tu tarjeta</h1>
           <p className="text-slate-500 text-sm">
-            No se realizará ningún cobro durante los primeros 3 días.
+            No se realizará ningún cobro durante tus 10 notas de prueba.
           </p>
         </div>
 
@@ -221,10 +217,7 @@ export default function OnboardingCard() {
                 <p className="text-xs font-bold text-primary-600 uppercase tracking-wider mb-1">Plan seleccionado</p>
                 <p className="font-bold text-slate-900">{planName}</p>
                 <p className="text-sm text-slate-500 mt-0.5">
-                  {formatCOP(planPrice)}/mes · se activa el{' '}
-                  <strong className="text-slate-700">
-                    {trialEnd.toLocaleDateString('es-CO', { day: 'numeric', month: 'long' })}
-                  </strong>
+                  {formatCOP(planPrice)}/mes · luego de tus 10 notas gratis
                 </p>
               </div>
               <Link
@@ -239,8 +232,8 @@ export default function OnboardingCard() {
           {/* Trust points */}
           <ul className="space-y-2 mb-6">
             {[
-              'Los 3 primeros días son completamente gratis',
-              'Cancela antes del día 3 sin ningún cargo',
+              'Las primeras 10 notas son completamente gratis',
+              'Cancela cuando quieras sin ningún cargo',
               'Pago procesado de forma segura por Wompi (Bancolombia)',
               'No almacenamos datos de tu tarjeta en nuestros servidores',
             ].map(item => (

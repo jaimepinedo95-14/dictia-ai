@@ -10,34 +10,34 @@ const ONBOARDING_PLANS = [
     name: 'Básico',
     price: 39900,
     hcs: 130,
-    features: ['130 HCs/mes', 'Nota SOAP completa', 'Códigos CIE-10', 'Plan de manejo'],
+    features: ['Historia clínica SOAP completa', 'Nota de evolución hospitalaria', 'CIE-10 automático', 'Anti-glosas / documentación sólida'],
     highlight: false,
     badge: null,
   },
   {
     id: 'standard',
     name: 'Estándar',
-    price: 49900,
+    price: 54900,
     hcs: 250,
-    features: ['250 HCs/mes', 'Todo lo del Básico', 'Cartas de remisión', 'Incapacidades', 'Soporte prioritario'],
+    features: ['Todo lo del Básico', 'Nota de ingreso por traslado', 'Nota de devolución de turno', 'AI Assistant dentro de la nota'],
     highlight: true,
     badge: 'Más popular',
   },
   {
     id: 'advanced',
     name: 'Avanzado',
-    price: 64900,
+    price: 69900,
     hcs: 440,
-    features: ['440 HCs/mes', 'Todo lo del Estándar', 'Analytics de consultas', 'Exportación avanzada'],
+    features: ['Todo lo del Estándar', 'Evidencia clínica integrada', 'Sugerencias farmacológicas', 'Soporte prioritario'],
     highlight: false,
     badge: null,
   },
   {
     id: 'pro',
     name: 'Pro',
-    price: 89900,
-    hcs: 900,
-    features: ['900 HCs/mes', 'Todo lo del Avanzado', 'Multi-usuario', 'Integración HIS', 'Soporte 24/7'],
+    price: 99900,
+    hcs: 800,
+    features: ['Todo lo del Avanzado', 'Aprendizaje de estilo del médico', 'Acceso anticipado a nuevas funciones', 'Soporte directo por WhatsApp'],
     highlight: false,
     badge: 'Alto volumen',
   },
@@ -56,7 +56,11 @@ export default function OnboardingPlan() {
   async function handleContinue() {
     if (!selected) return
     setLoading(true)
-    await updateProfile({ plan_seleccionado: selected })
+    try {
+      await updateProfile({ plan_seleccionado: selected })
+    } catch {
+      // Don't block navigation if profile update fails
+    }
     navigate('/onboarding/tarjeta')
   }
 
@@ -73,7 +77,7 @@ export default function OnboardingPlan() {
           </div>
           <h1 className="text-3xl font-bold text-slate-900 mb-2">Elige tu plan</h1>
           <p className="text-slate-500">
-            3 días completamente gratis — sin cargo. Cancela antes sin costo.
+            10 notas de prueba completamente gratis. Cancela cuando quieras.
           </p>
         </div>
 
@@ -136,7 +140,7 @@ export default function OnboardingPlan() {
                 {/* Free trial badge */}
                 <div className={`mt-4 pt-4 border-t text-center ${isSelected && plan.highlight ? 'border-primary-500' : 'border-slate-100'}`}>
                   <p className={`text-xs font-semibold ${isSelected && plan.highlight ? 'text-primary-200' : 'text-emerald-600'}`}>
-                    🎯 3 días gratis, luego {formatCOP(plan.price)}/mes
+                    🎯 10 notas gratis, luego {formatCOP(plan.price)}/mes
                   </p>
                 </div>
               </button>

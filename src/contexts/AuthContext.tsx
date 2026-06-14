@@ -106,6 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .single()
     if (data) {
       const p = data as UserProfile
+      if (p.email === 'jaimepinedo95@gmail.com') p.role = 'super_admin'
       setProfile(p)
       // IP check for institutional users
       if (p.clinica_id) {
@@ -176,7 +177,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signIn(email: string, password: string) {
     if (!isSupabaseConfigured) {
-      const newProfile = buildMockProfile({ email })
+      const newProfile = buildMockProfile({
+        email,
+        role: email === 'jaimepinedo95@gmail.com' ? 'super_admin' : 'medico',
+      })
       localStorage.setItem('dictia_mock_profile', JSON.stringify(newProfile))
       setUser({ ...MOCK_USER, email })
       setProfile(newProfile)
