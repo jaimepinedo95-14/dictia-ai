@@ -75,12 +75,12 @@ const FAQ_ITEMS = [
     a: 'Sí. Dictia tiene nota de evolución hospitalaria con contexto de notas previas, nota de ingreso por traslado desde cualquier servicio o institución, y nota de devolución de turno. También funciona para consulta ambulatoria, teleconsulta y urgencias.',
   },
   {
-    q: '¿Qué pasa si se me acaban las HCs del plan?',
-    a: 'Te avisamos cuando estés cerca del límite. Puedes cambiar de plan en cualquier momento desde tu perfil, sin penalización.',
+    q: '¿Cómo funciona la prueba gratuita?',
+    a: 'Recibes 10 historias clínicas completamente gratis para probar Dictia. Se requiere registrar una tarjeta de crédito para activar la prueba — no se realiza ningún cobro hasta que uses tus 10 notas gratuitas y decidas continuar con un plan de pago.',
   },
   {
     q: '¿Puedo cancelar en cualquier momento?',
-    a: 'Sí, sin penalización ni explicaciones. Si cancelas durante los 3 días de prueba, no se te cobra absolutamente nada.',
+    a: 'Sí, sin penalización. Tienes 10 notas gratuitas para probar Dictia. Si cancelas antes de agotar las 10 notas, no se te cobra nada.',
   },
   {
     q: '¿Funciona con cualquier especialidad?',
@@ -114,7 +114,7 @@ export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly')
   const [showDemoModal, setShowDemoModal] = useState(false)
-  const [demoForm, setDemoForm] = useState({ nombre: '', institucion: '', email: '', medicos: '', telefono: '' })
+  const [demoForm, setDemoForm] = useState({ nombre: '', institucion: '', ciudad: '', medicos: '', whatsapp: '' })
   const [demoSubmitting, setDemoSubmitting] = useState(false)
   const [demoSuccess, setDemoSuccess] = useState(false)
   const [cookieBannerDismissed, setCookieBannerDismissed] = useState(
@@ -131,10 +131,10 @@ export default function LandingPage() {
     setDemoSubmitting(true)
     await saveDemoRequest({
       nombre_completo: demoForm.nombre,
-      nombre_institucion: demoForm.institucion,
-      email_institucional: demoForm.email,
+      nombre_institucion: `${demoForm.institucion} — ${demoForm.ciudad}`,
+      email_institucional: demoForm.whatsapp,
       numero_medicos: demoForm.medicos ? parseInt(demoForm.medicos) : null,
-      telefono: demoForm.telefono,
+      telefono: demoForm.ciudad,
     })
     setDemoSubmitting(false)
     setDemoSuccess(true)
@@ -207,7 +207,7 @@ export default function LandingPage() {
 
           <div className="inline-flex items-center gap-2 bg-slate-50 border border-slate-200 text-slate-600 text-xs font-semibold px-4 py-2 rounded-full mb-10">
             <Globe size={12} className="text-primary-600" />
-            Médicos en Colombia, México, Argentina y Chile
+            Para médicos latinoamericanos
           </div>
 
           <h1 className="text-5xl sm:text-6xl lg:text-[80px] font-black text-slate-900 leading-[1.05] tracking-tight mb-7">
@@ -222,7 +222,7 @@ export default function LandingPage() {
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center mb-14">
             <Link to="/registro" className="inline-flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 text-white font-bold px-8 py-4 rounded-2xl text-base transition-colors shadow-lg shadow-primary-200">
-              Empieza gratis — 3 días sin costo <ArrowRight size={18} />
+              Empieza gratis — 10 notas de prueba gratis <ArrowRight size={18} />
             </Link>
             <a href="#como-funciona" className="inline-flex items-center justify-center gap-2 bg-white border border-slate-200 hover:border-slate-300 text-slate-700 font-semibold px-8 py-4 rounded-2xl text-base transition-colors">
               <Play size={16} className="text-primary-600" />
@@ -398,7 +398,7 @@ export default function LandingPage() {
           <div className="text-center mb-12">
             <p className="text-xs font-bold text-primary-600 uppercase tracking-widest mb-4">Precios</p>
             <h2 className="text-4xl sm:text-5xl font-black text-slate-900 mb-5">Planes simples, sin letra pequeña</h2>
-            <p className="text-lg text-slate-500 mb-8">3 días gratis para todos los planes. Sin tarjeta los primeros 3 días. Cancela cuando quieras.</p>
+            <p className="text-lg text-slate-500 mb-8">10 notas gratis para probar. Requiere tarjeta de crédito. Sin cobro hasta agotar las 10 notas.</p>
 
             <div className="inline-flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
               <button
@@ -468,7 +468,7 @@ export default function LandingPage() {
                     )}
                     <p className={`text-sm mt-1 ${plan.highlight ? 'text-primary-200' : 'text-slate-500'}`}>
                       {typeof plan.consultations === 'number' ? `${plan.consultations} consultas` : plan.consultations}
-                      {plan.price === 0 ? ' · 3 días' : '/mes'}
+                      {plan.price === 0 ? ' · prueba gratuita' : '/mes'}
                     </p>
                   </div>
                   <ul className="space-y-2 mb-6 flex-1">
@@ -533,37 +533,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── TESTIMONIOS ── */}
-      <section className="py-28 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <p className="text-xs font-bold text-primary-600 uppercase tracking-widest mb-4">Testimonios</p>
-            <h2 className="text-4xl sm:text-5xl font-black text-slate-900">Médicos que ya<br />cambiaron su forma de trabajar.</h2>
-          </div>
-          <div className="grid md:grid-cols-3 gap-5">
-            {TESTIMONIALS.map(({ name, specialty, avatar, text, stars }) => (
-              <div key={name} className="bg-white rounded-3xl p-7 border border-slate-100 shadow-sm flex flex-col">
-                <div className="flex gap-0.5 mb-5">
-                  {Array.from({ length: stars }).map((_, i) => (
-                    <Star key={i} size={14} className="text-amber-400 fill-amber-400" />
-                  ))}
-                </div>
-                <p className="text-slate-700 leading-relaxed text-sm flex-1 mb-6">"{text}"</p>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
-                    <span className="text-xs font-black text-primary-700">{avatar}</span>
-                  </div>
-                  <div>
-                    <p className="font-bold text-slate-900 text-sm">{name}</p>
-                    <p className="text-xs text-slate-400">{specialty}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* ── FAQ ── */}
       <section id="faq" className="py-28 bg-slate-50/60 border-y border-slate-100">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -590,7 +559,7 @@ export default function LandingPage() {
       <section className="py-28 bg-[#0F172A]">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
           <h2 className="text-5xl sm:text-6xl font-black text-white mb-6 leading-tight tracking-tight">
-            Empieza hoy. Tus primeros<br />3 días son gratis.
+            Empieza hoy. Tus primeras<br />10 notas son gratis.
           </h2>
           <p className="text-slate-400 text-lg mb-10 leading-relaxed">
             Únete a los médicos que ya dejaron de perder<br />horas al día escribiendo notas clínicas.
@@ -598,7 +567,7 @@ export default function LandingPage() {
           <Link to="/registro" className="inline-flex items-center gap-2 bg-primary-600 hover:bg-primary-500 text-white font-bold px-10 py-4 rounded-2xl text-lg transition-colors shadow-xl shadow-primary-900/30">
             Crear cuenta gratis <ArrowRight size={20} />
           </Link>
-          <p className="mt-5 text-slate-600 text-sm">Sin tarjeta los primeros 3 días · Sin compromisos · Cancela cuando quieras</p>
+          <p className="mt-5 text-slate-600 text-sm">10 notas de prueba · Sin compromisos · Cancela cuando quieras</p>
         </div>
       </section>
 
@@ -673,8 +642,8 @@ export default function LandingPage() {
             ) : (
               <>
                 <div className="mb-6">
-                  <h3 className="text-2xl font-black text-slate-900">Demo institucional</h3>
-                  <p className="text-slate-500 text-sm mt-1">Completa el formulario y le contactaremos en menos de 24 horas.</p>
+                  <h3 className="text-2xl font-black text-slate-900">Solicitar información</h3>
+                  <p className="text-slate-500 text-sm mt-1">Te contactaremos en menos de 24 horas.</p>
                 </div>
                 <form onSubmit={handleDemoSubmit} className="space-y-4">
                   <div className="grid sm:grid-cols-2 gap-4">
@@ -690,7 +659,7 @@ export default function LandingPage() {
                       />
                     </div>
                     <div>
-                      <label className="label">Nombre de la institución</label>
+                      <label className="label">Clínica u hospital</label>
                       <input
                         type="text"
                         value={demoForm.institucion}
@@ -701,20 +670,20 @@ export default function LandingPage() {
                       />
                     </div>
                   </div>
-                  <div>
-                    <label className="label">Email institucional</label>
-                    <input
-                      type="email"
-                      value={demoForm.email}
-                      onChange={e => setDemoForm(p => ({ ...p, email: e.target.value }))}
-                      placeholder="admin@clinica.com"
-                      className="input-field"
-                      required
-                    />
-                  </div>
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="label">Número de médicos</label>
+                      <label className="label">Ciudad y país</label>
+                      <input
+                        type="text"
+                        value={demoForm.ciudad}
+                        onChange={e => setDemoForm(p => ({ ...p, ciudad: e.target.value }))}
+                        placeholder="Bogotá, Colombia"
+                        className="input-field"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="label">Número aproximado de médicos</label>
                       <select
                         value={demoForm.medicos}
                         onChange={e => setDemoForm(p => ({ ...p, medicos: e.target.value }))}
@@ -728,17 +697,17 @@ export default function LandingPage() {
                         <option value="150">Más de 100</option>
                       </select>
                     </div>
-                    <div>
-                      <label className="label">Teléfono de contacto</label>
-                      <input
-                        type="tel"
-                        value={demoForm.telefono}
-                        onChange={e => setDemoForm(p => ({ ...p, telefono: e.target.value }))}
-                        placeholder="+57 300 000 0000"
-                        className="input-field"
-                        required
-                      />
-                    </div>
+                  </div>
+                  <div>
+                    <label className="label">WhatsApp o email de contacto</label>
+                    <input
+                      type="text"
+                      value={demoForm.whatsapp}
+                      onChange={e => setDemoForm(p => ({ ...p, whatsapp: e.target.value }))}
+                      placeholder="+57 300 000 0000 o admin@clinica.com"
+                      className="input-field"
+                      required
+                    />
                   </div>
                   <button
                     type="submit"
@@ -748,7 +717,7 @@ export default function LandingPage() {
                     {demoSubmitting ? (
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     ) : (
-                      <>Solicitar demo <ArrowRight size={16} /></>
+                      <>Solicitar información <ArrowRight size={16} /></>
                     )}
                   </button>
                 </form>
