@@ -284,10 +284,10 @@ export default function LandingPage() {
             Los médicos pierden 16 minutos por paciente solo en documentación. Dictia los elimina.
           </p>
           <div className="flex flex-col items-center gap-6">
-            <div className="bg-primary-600 rounded-3xl p-10 inline-block">
-              <p className="text-7xl sm:text-8xl font-black text-white mb-3 tracking-tight">16 min</p>
-              <p className="text-primary-200 text-base leading-relaxed max-w-sm mx-auto">
-                por paciente en documentación clínica, según estudio publicado en PubMed con datos de 155,000 médicos
+            <div className="bg-primary-600 rounded-3xl p-7 inline-block w-full max-w-[300px]">
+              <p className="text-6xl font-black text-white mb-2 tracking-tight">16 min</p>
+              <p className="text-primary-200 text-sm leading-relaxed">
+                es el tiempo promedio de una consulta médica. Entre 4 y 8 de esos minutos se van solo en escribir la nota.
               </p>
             </div>
             <Link to="/registro" className="inline-flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white font-bold px-8 py-4 rounded-2xl text-base transition-colors shadow-lg shadow-primary-200">
