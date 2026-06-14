@@ -14,8 +14,8 @@ import { saveDemoRequest } from '../lib/db'
 const FEATURES = [
   { icon: FileText, title: 'Historia clínica SOAP', desc: 'Motivo de consulta, examen físico, diagnóstico CIE-10, plan de manejo, medicamentos e instrucciones al paciente. Todo en una nota.' },
   { icon: Activity, title: 'Nota de evolución hospitalaria', desc: 'Para rondas, UCI y hospitalización. Pega las notas previas del paciente y Dictia genera la evolución del día con contexto completo.' },
-  { icon: Shield, title: 'Anti-glosas colombianas', desc: 'Notas redactadas para resistir auditorías de EPS. Menos devoluciones, menos reprocesos, menos tiempo perdido.' },
-  { icon: Mic, title: 'Graba desde el celular', desc: 'La nota aparece en tu computador en tiempo real. Instala Dictia en tu celular sin pasar por App Store — gratis.' },
+  { icon: Shield, title: 'Documentación que reduce glosas', desc: 'Notas clínicas que reducen la probabilidad de glosas en auditorías. Menos devoluciones, menos reprocesos.' },
+  { icon: Mic, title: 'Graba desde el celular', desc: 'La nota aparece en tu computador en tiempo real. Instala Dictia en tu celular en un tap — gratis.' },
   { icon: Zap, title: 'Silencio inteligente', desc: 'Si llevas 5 minutos sin hablar, la grabación se detiene sola. Sin perder lo que ya grabaste.' },
   { icon: Lock, title: 'Cero datos de pacientes', desc: 'El audio se transcribe en tiempo real y se descarta inmediatamente. Nunca guardamos información de tus pacientes. Cumplimiento Ley 1581 de 2012.' },
 ]
@@ -268,7 +268,7 @@ export default function LandingPage() {
                 step: '02',
                 icon: Zap,
                 title: 'Escucha',
-                desc: 'Dictia transcribe la consulta en tiempo real, entiende el contexto clínico y aplica las reglas de documentación colombianas.',
+                desc: 'Dictia transcribe la consulta en tiempo real, entiende el contexto clínico y aplica los estándares de documentación clínica.',
                 color: 'text-violet-600',
                 bg: 'bg-violet-50',
               },
@@ -312,9 +312,6 @@ export default function LandingPage() {
               por paciente en documentación clínica, según estudio publicado en PubMed con datos de 155,000 médicos
             </p>
           </div>
-          <p className="text-lg text-slate-500 leading-relaxed max-w-3xl mx-auto mb-10">
-            En hospitalización es peor. Los médicos residentes gastan en promedio 45 minutos por paciente en el sistema, incluyendo tiempo después de su turno. Dictia cambia eso.
-          </p>
           <Link to="/registro" className="inline-flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white font-bold px-8 py-4 rounded-2xl text-base transition-colors shadow-lg shadow-primary-200">
             Recupera tu tiempo hoy <ArrowRight size={18} />
           </Link>
@@ -334,14 +331,14 @@ export default function LandingPage() {
               Diseñado con médicos latinoamericanos para su consulta diaria.
             </p>
           </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {FEATURES.map(({ icon: Icon, title, desc }) => (
-              <div key={title} className="group bg-white rounded-2xl p-6 border border-slate-100 hover:border-primary-200 hover:shadow-sm transition-all duration-200">
-                <div className="w-9 h-9 rounded-xl bg-primary-50 border border-primary-100 flex items-center justify-center mb-4 group-hover:bg-primary-100 transition-colors">
-                  <Icon size={17} className="text-primary-600" />
+              <div key={title} className="group bg-white rounded-2xl p-7 border border-slate-100 shadow-sm hover:border-primary-200 hover:shadow-md transition-all duration-200">
+                <div className="w-11 h-11 rounded-xl bg-primary-50 border border-primary-100 flex items-center justify-center mb-5 group-hover:bg-primary-100 transition-colors">
+                  <Icon size={20} className="text-primary-600" />
                 </div>
-                <h3 className="font-bold text-slate-900 mb-1.5 text-sm">{title}</h3>
-                <p className="text-xs text-slate-500 leading-relaxed">{desc}</p>
+                <h3 className="font-bold text-slate-900 mb-2 text-base">{title}</h3>
+                <p className="text-sm text-slate-500 leading-relaxed">{desc}</p>
               </div>
             ))}
           </div>
@@ -381,11 +378,11 @@ export default function LandingPage() {
             <h2 className="text-4xl sm:text-5xl font-black text-white mb-4">El impacto es real</h2>
             <p className="text-slate-400 text-lg">Datos de médicos que ya usan Dictia AI en su práctica diaria</p>
           </div>
-          <div className="grid sm:grid-cols-3 gap-4">
+          <div className="grid sm:grid-cols-3 gap-5">
             {STATS_DATA.map(({ value, label }) => (
-              <div key={value} className="bg-white/5 border border-white/10 rounded-3xl p-7 hover:bg-white/8 transition-colors">
-                <div className="text-4xl lg:text-5xl font-black text-white mb-3 tracking-tight">{value}</div>
-                <p className="text-slate-400 text-xs leading-relaxed">{label}</p>
+              <div key={value} className="bg-white/[0.07] border border-white/[0.12] rounded-2xl p-8 hover:bg-white/10 transition-colors">
+                <div className="text-5xl lg:text-6xl font-black text-white mb-4 tracking-tight">{value}</div>
+                <p className="text-slate-300 text-sm leading-relaxed">{label}</p>
               </div>
             ))}
           </div>

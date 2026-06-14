@@ -137,7 +137,7 @@ export const PLANS = [
   {
     id: 'standard',
     name: 'Estándar',
-    price: 49900,
+    price: 54900,
     currency: 'COP',
     consultations: 250,
     period: 'mes',
@@ -149,7 +149,7 @@ export const PLANS = [
   {
     id: 'advanced',
     name: 'Avanzado',
-    price: 64900,
+    price: 69900,
     currency: 'COP',
     consultations: 440,
     period: 'mes',
@@ -160,7 +160,7 @@ export const PLANS = [
   {
     id: 'pro',
     name: 'Pro',
-    price: 89900,
+    price: 99900,
     currency: 'COP',
     consultations: 900,
     period: 'mes',
