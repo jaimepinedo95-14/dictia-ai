@@ -281,17 +281,19 @@ export default function LandingPage() {
             El tiempo que pierdes documentando<br />es tiempo que le quitas a tus pacientes
           </h2>
           <p className="text-lg text-slate-500 leading-relaxed max-w-3xl mx-auto mb-10">
-            Un estudio con más de 100 millones de consultas médicas encontró que los médicos gastan en promedio 16 minutos por paciente en el sistema de historia clínica. La documentación es el componente que más tiempo consume — y el menos relacionado con la atención directa.
+            Los médicos pierden 16 minutos por paciente solo en documentación. Dictia los elimina.
           </p>
-          <div className="bg-primary-600 rounded-3xl p-10 mb-10 inline-block">
-            <p className="text-7xl sm:text-8xl font-black text-white mb-3 tracking-tight">16 min</p>
-            <p className="text-primary-200 text-base leading-relaxed max-w-sm mx-auto">
-              por paciente en documentación clínica, según estudio publicado en PubMed con datos de 155,000 médicos
-            </p>
+          <div className="flex flex-col items-center gap-6">
+            <div className="bg-primary-600 rounded-3xl p-10 inline-block">
+              <p className="text-7xl sm:text-8xl font-black text-white mb-3 tracking-tight">16 min</p>
+              <p className="text-primary-200 text-base leading-relaxed max-w-sm mx-auto">
+                por paciente en documentación clínica, según estudio publicado en PubMed con datos de 155,000 médicos
+              </p>
+            </div>
+            <Link to="/registro" className="inline-flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white font-bold px-8 py-4 rounded-2xl text-base transition-colors shadow-lg shadow-primary-200">
+              Recupera tu tiempo hoy <ArrowRight size={18} />
+            </Link>
           </div>
-          <Link to="/registro" className="inline-flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white font-bold px-8 py-4 rounded-2xl text-base transition-colors shadow-lg shadow-primary-200">
-            Recupera tu tiempo hoy <ArrowRight size={18} />
-          </Link>
           <p className="mt-8 text-slate-400 text-xs leading-relaxed">
             Fuentes: Overhage et al., Annals of Internal Medicine, 2020. Romano et al., PMC, 2021.
           </p>
