@@ -68,7 +68,7 @@ const FAQ_ITEMS = [
   },
   {
     q: '¿Necesito descargar algo?',
-    a: 'No. Dictia funciona desde cualquier navegador en computador o celular. Si quieres instalarlo como app en tu celular, puedes hacerlo en un tap desde el navegador — sin pasar por App Store ni Google Play, y sin riesgo de ningún tipo.',
+    a: 'No. Dictia funciona desde cualquier navegador en computador o celular. Si quieres instalarlo como app en tu celular, puedes hacerlo en un tap desde el navegador — gratis.',
   },
   {
     q: '¿Funciona para hospitalización y urgencias?',
