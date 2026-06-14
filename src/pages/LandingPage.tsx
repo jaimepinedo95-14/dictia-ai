@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  Mic, FileText, CheckCircle, Shield, Star,
+  Mic, FileText, CheckCircle, Shield,
   ChevronRight, Play, Zap, Globe, Lock, Users,
   Stethoscope, Baby, Heart, Brain, Activity, Pill,
   Menu, X, ArrowRight, Check, ChevronDown, ChevronUp,
@@ -37,29 +37,6 @@ const STATS_DATA = [
   { value: '0 datos', label: 'de pacientes almacenados. Nunca.' },
 ]
 
-const TESTIMONIALS = [
-  {
-    name: 'Dra. Valentina Ríos',
-    specialty: 'Medicina General · Bogotá, Colombia',
-    avatar: 'VR',
-    text: 'Dictia AI transformó completamente mi consulta. Antes me quedaba hasta las 9pm completando historias. Ahora salgo a tiempo y mis notas son mejores que antes.',
-    stars: 5,
-  },
-  {
-    name: 'Dr. Rodrigo Méndez',
-    specialty: 'Urgencias · Ciudad de México, México',
-    avatar: 'RM',
-    text: 'En urgencias el tiempo es crítico. Con Dictia puedo atender al siguiente paciente en segundos mientras la IA documenta la consulta anterior. Increíble.',
-    stars: 5,
-  },
-  {
-    name: 'Dra. Camila Fontaine',
-    specialty: 'Pediatría · Santiago, Chile',
-    avatar: 'CF',
-    text: 'Lo que más me sorprendió fue la calidad de los CIE-10 y las instrucciones para los papás. Muy claras, en lenguaje simple. Los padres las entienden.',
-    stars: 5,
-  },
-]
 
 const FAQ_ITEMS = [
   {
