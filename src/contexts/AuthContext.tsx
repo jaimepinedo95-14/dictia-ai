@@ -13,7 +13,7 @@ type AuthContextType = {
   loading: boolean
   isSupabaseMode: boolean
   ipBlocked: boolean
-  signUp: (email: string, password: string, data: Partial<UserProfile>) => Promise<{ error: Error | null }>
+  signUp: (email: string, password: string, data: Partial<UserProfile>) => Promise<{ error: Error | null; emailConfirmationRequired?: boolean }>
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>
   signOut: () => Promise<void>
   updateProfile: (data: Partial<UserProfile>) => Promise<void>
@@ -148,8 +148,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: authData, error } = await supabase.auth.signUp({ email, password })
     if (error) return { error }
 
+    // session is null when Supabase requires email confirmation
+    if (!authData.session) {
+      return { error: null, emailConfirmationRequired: true }
+    }
+
     if (authData.user) {
-      await supabase.from('user_profiles').insert({
+      const { error: insertError } = await supabase.from('user_profiles').insert({
         id: authData.user.id,
         email,
         full_name: data.full_name ?? '',
@@ -163,6 +168,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         accepted_terms_version: data.accepted_terms_version ?? null,
         subscription_status: 'pending',
       })
+      if (insertError) return { error: insertError }
     }
 
     return { error: null }

@@ -1,6 +1,6 @@
 import { useState, FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Eye, EyeOff, ArrowRight, AlertCircle, CheckSquare, Square } from 'lucide-react'
+import { Eye, EyeOff, ArrowRight, AlertCircle, CheckSquare, Square, Mail } from 'lucide-react'
 import Logo from '../components/Logo'
 import { useAuth } from '../contexts/AuthContext'
 import { COUNTRIES, SPECIALTIES } from '../lib/mockData'
@@ -20,6 +20,7 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [emailSent, setEmailSent] = useState(false)
   const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [acceptedResponsibility, setAcceptedResponsibility] = useState(false)
 
@@ -47,7 +48,7 @@ export default function RegisterPage() {
     setLoading(true)
     setError('')
 
-    const { error: authError } = await signUp(email, password, {
+    const { error: authError, emailConfirmationRequired } = await signUp(email, password, {
       full_name: fullName,
       country,
       specialty,
@@ -56,7 +57,10 @@ export default function RegisterPage() {
     })
 
     if (authError) {
-      setError('Error al crear la cuenta. Intenta de nuevo.')
+      setError(authError.message || 'Error al crear la cuenta. Intenta de nuevo.')
+      setLoading(false)
+    } else if (emailConfirmationRequired) {
+      setEmailSent(true)
       setLoading(false)
     } else {
       navigate('/onboarding/plan')
@@ -67,6 +71,25 @@ export default function RegisterPage() {
     : form.password.length < 6 ? 1
     : form.password.length < 10 ? 2
     : 3
+
+  if (emailSent) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-primary-50 flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-slate-100 p-8 text-center">
+          <div className="w-16 h-16 bg-primary-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <Mail size={28} className="text-primary-600" />
+          </div>
+          <h2 className="text-xl font-bold text-slate-900 mb-3">Revisa tu correo</h2>
+          <p className="text-slate-500 text-sm leading-relaxed">
+            Te enviamos un enlace de confirmación a <strong>{form.email}</strong>. Haz clic en el enlace para activar tu cuenta y luego inicia sesión.
+          </p>
+          <Link to="/login" className="mt-6 inline-block text-primary-600 font-semibold text-sm hover:text-primary-700">
+            Ir a iniciar sesión →
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-primary-50 flex flex-col items-center justify-center p-4 py-12">
