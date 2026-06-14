@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Dictia AI — Asistente Médico",
+  "version": "1.0.0",
+  "description": "Inserta tu última historia clínica aprobada en cualquier sistema HIS con un clic.",
+  "permissions": ["storage", "activeTab", "scripting", "notifications"],
+  "host_permissions": ["<all_urls>"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Dictia AI",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

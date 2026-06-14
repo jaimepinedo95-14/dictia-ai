@@ -1,0 +1,37 @@
+{
+  "name": "Dictia AI",
+  "short_name": "Dictia",
+  "description": "Tu asistente de documentación clínica para América Latina",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#1B4FD8",
+  "background_color": "#ffffff",
+  "lang": "es",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "categories": ["medical", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Nueva consulta",
+      "short_name": "Grabar",
+      "description": "Grabar una nueva consulta médica",
+      "url": "/nueva-consulta",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
