@@ -185,6 +185,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Main content */}
       <main className="flex-1 lg:ml-64 pt-16 lg:pt-0 min-h-screen flex flex-col">
+        {!import.meta.env.VITE_WOMPI_PUBLIC_KEY && profile?.role === 'super_admin' && (
+          <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center justify-center gap-2">
+            <span className="text-xs font-semibold text-amber-700">⚠ Modo desarrollo — Wompi no configurado, pagos simulados</span>
+          </div>
+        )}
         <TrialBanner />
         <div className="flex-1">{children}</div>
       </main>

@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
-import { Lock, CreditCard, CheckCircle, AlertCircle, ArrowRight, Check, RefreshCw } from 'lucide-react'
+import { Lock, CheckCircle, AlertCircle, Check, RefreshCw } from 'lucide-react'
 import Logo from '../components/Logo'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -33,7 +33,8 @@ export default function OnboardingCard() {
   const [searchParams] = useSearchParams()
   const widgetContainerRef = useRef<HTMLDivElement>(null)
 
-  const [stage, setStage] = useState<Stage>('widget')
+  // Start in 'processing' immediately when Wompi is not configured (dev mode bypass)
+  const [stage, setStage] = useState<Stage>(WOMPI_PUBLIC_KEY ? 'widget' : 'processing')
   const [errorMsg, setErrorMsg] = useState('')
   const [reference] = useState(() => `dictia_${user?.id ?? 'u'}_${Date.now()}`)
 
@@ -137,6 +138,30 @@ export default function OnboardingCard() {
     return () => { if (widgetContainerRef.current) widgetContainerRef.current.innerHTML = '' }
   }, [stage, user?.email, reference])
 
+  // ── Dev-mode bypass: auto-activate trial when Wompi is not configured ─────────
+  useEffect(() => {
+    if (WOMPI_PUBLIC_KEY) return            // Wompi configured: use the widget
+    if (searchParams.get('id')) return      // Wompi redirect: handled by the first effect
+
+    const now = new Date().toISOString()
+    const trialEndAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString()
+
+    updateProfile({
+      subscription_status: 'trial',
+      card_registered_at: now,
+      trial_start_at: now,
+      trial_end_at: trialEndAt,
+      trial_ends_at: trialEndAt,
+    })
+      .then(() => updateProfile({ trial_notes_limit: 15, trial_notes_used: 0 }).catch(() => {}))
+      .then(() => { setStage('success'); setTimeout(() => navigate('/dashboard', { replace: true }), 1500) })
+      .catch(() => {
+        setErrorMsg('Error al activar el período de prueba. Por favor recarga la página.')
+        setStage('error')
+      })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // ── Success screen ─────────────────────────────────────────────────────────────
   if (stage === 'success') {
     return (
@@ -167,8 +192,12 @@ export default function OnboardingCard() {
           <div className="w-20 h-20 bg-primary-50 rounded-full flex items-center justify-center mx-auto mb-6">
             <RefreshCw size={36} className="text-primary-600 animate-spin" />
           </div>
-          <h2 className="text-xl font-bold text-slate-900 mb-2">Verificando tu tarjeta…</h2>
-          <p className="text-slate-500 text-sm">Esto tarda unos segundos.</p>
+          <h2 className="text-xl font-bold text-slate-900 mb-2">
+            {WOMPI_PUBLIC_KEY ? 'Verificando tu tarjeta…' : 'Activando período de prueba…'}
+          </h2>
+          <p className="text-slate-500 text-sm">
+            {WOMPI_PUBLIC_KEY ? 'Esto tarda unos segundos.' : 'Modo desarrollo — sin cargo.'}
+          </p>
         </div>
       </Screen>
     )
@@ -253,40 +282,11 @@ export default function OnboardingCard() {
 
           {/* Wompi button container */}
           <div className="flex flex-col items-center gap-3">
-            {WOMPI_PUBLIC_KEY ? (
-              <>
-                <p className="text-xs text-slate-400 text-center">
-                  Al hacer clic serás redirigido al portal seguro de Wompi para ingresar los datos de tu tarjeta.
-                </p>
-                {/* Wompi renders its button inside this div */}
-                <div ref={widgetContainerRef} className="w-full flex justify-center min-h-[48px]" />
-              </>
-            ) : (
-              /* Fallback for when VITE_WOMPI_PUBLIC_KEY is not configured (dev mode) */
-              <button
-                onClick={async () => {
-                  setStage('processing')
-                  await updateProfile({
-                    subscription_status: 'trial',
-                    wompi_customer_id: 'mock_payment_source_dev',
-                    wompi_subscription_id: reference,
-                    card_registered_at: new Date().toISOString(),
-                    trial_start_at: new Date().toISOString(),
-                    trial_end_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-                    trial_ends_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-                    trial_notes_limit: 15,
-                    trial_notes_used: 0,
-                  })
-                  setStage('success')
-                  setTimeout(() => navigate('/dashboard', { replace: true }), 1500)
-                }}
-                className="w-full flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 text-white font-bold py-4 rounded-2xl transition-colors"
-              >
-                <CreditCard size={18} />
-                Activar prueba gratuita (modo desarrollo)
-                <ArrowRight size={18} />
-              </button>
-            )}
+            <p className="text-xs text-slate-400 text-center">
+              Al hacer clic serás redirigido al portal seguro de Wompi para ingresar los datos de tu tarjeta.
+            </p>
+            {/* Wompi renders its button inside this div */}
+            <div ref={widgetContainerRef} className="w-full flex justify-center min-h-[48px]" />
           </div>
 
           <div className="flex items-center justify-center gap-1.5 mt-4">
