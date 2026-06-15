@@ -44,8 +44,8 @@ function IpBlockScreen() {
 }
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading, ipBlocked, profile } = useAuth()
-  const location = useLocation()
+  const { user, loading, ipBlocked } = useAuth()
+  useLocation() // keep import alive — will be needed when guard is restored
 
   if (loading) {
     return (
@@ -60,25 +60,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!user) return <Navigate to="/login" replace />
   if (ipBlocked) return <IpBlockScreen />
-  if (profile?.role === 'super_admin') return <>{children}</>
 
-  const status = profile?.subscription_status
-  const path = location.pathname
-
-  // Onboarding routes — allow only when pending
-  if (path.startsWith('/onboarding')) {
-    if (status === 'trial' || status === 'active') return <Navigate to="/dashboard" replace />
-    return <>{children}</>
-  }
-
-  // Subscription status screens — always allow
-  if (path.startsWith('/subscription')) return <>{children}</>
-
-  // Main app — require completed onboarding
-  if (!status || status === 'pending') return <Navigate to="/onboarding/plan" replace />
-  if (status === 'cancelled') return <Navigate to="/subscription/cancelado" replace />
-  if (status === 'expired') return <Navigate to="/subscription/vencido" replace />
-
+  // TEMPORAL: cualquier usuario autenticado accede directo — sin verificar subscription_status
+  // TODO: restaurar el guard de onboarding cuando Wompi esté configurado
   return <>{children}</>
 }
 
