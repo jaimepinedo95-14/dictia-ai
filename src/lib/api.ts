@@ -118,17 +118,28 @@ lineaContexto — LÍNEA DE CONTEXTO:
 "Paciente [masculino/femenino] de [X] años, en [hospitalización/observación/UCI], en contexto de [diagnóstico principal], día [N] de estancia."
 Solo con datos disponibles. Si hay múltiples notas, calcular el día de estancia si es posible.
 
-estadoActual — ESTADO ACTUAL (solo frases que correspondan a la grabación de hoy):
+estadoActual — ESTADO CLÍNICO DEL DÍA (valoración médica objetiva, solo frases que correspondan a la grabación):
+Usar frases clínicas formales del médico observador:
 - "Paciente afebril durante las últimas 24 horas" | "Con picos febriles de hasta X°C"
 - "Hemodinámicamente estable" | "Con hipotensión que requirió [manejo]"
 - "Tolerando vía oral / en ayuno"
 - "Con adecuada tolerancia al manejo instaurado" | "Con mala tolerancia a [X]"
-- "Refiere mejoría del dolor" | "Persiste dolor de intensidad X/10"
 - "Sin nuevos eventos durante la noche" | "Con evento de [X] durante la noche"
 - "En ventilación espontánea con FiO2 ambiente" | "Con requerimiento de O2 a X L/min"
 - "Con adecuado gasto urinario" | "Con oliguria / anuria"
-- "Mejoría / persistencia / empeoramiento de [síntoma]"
-Solo incluir lo que el médico mencione. No inventar ninguna frase.
+Solo incluir lo que el médico mencione desde su perspectiva clínica. No inventar ninguna frase.
+No incluir lo que dice el paciente — eso va en referePaciente.
+
+referePaciente — LO QUE REFIERE EL PACIENTE:
+Una línea con lo que dice o refiere el paciente en sus propias palabras o lenguaje simple.
+Formato exacto: "Paciente refiere [...]"
+Ejemplos:
+- "Paciente refiere sentirse mejor, con menos dolor, tolerando bien la vía oral."
+- "Paciente refiere persistencia del dolor abdominal, sin mejoría tras el manejo."
+- "Paciente refiere no tener molestias al momento de la evaluación."
+- "Paciente refiere mejoría del mareo, con apetito conservado."
+NO usar términos médicos técnicos aquí ("hemodinámicamente estable", "taquicárdico", "febril") — esos van en estadoActual.
+Si el paciente no hizo ningún reporte verbal en la grabación → cadena vacía "".
 
 diagnosticosActivos — DIAGNÓSTICOS ACTIVOS con CIE-10:
 Formato: "1. [Diagnóstico principal] — [CIE-10]\n2. [Comorbilidad] — [CIE-10]"
@@ -138,22 +149,28 @@ signosVitales — SIGNOS VITALES (SOLO si se mencionan en la grabación):
 Si no se mencionan → cadena vacía "".
 
 examenFisicoDia — EXAMEN FÍSICO DEL DÍA:
+Formato obligatorio: cada sistema en una línea separada con sus hallazgos al lado. Solo los sistemas que se examinen.
+Ejemplo de formato:
+Cabeza y cuello: normocéfalo, pupilas isocóricas normoreactivas, mucosas húmedas
+Tórax: murmullo vesicular presente bilateral, sin agregados patológicos
+Abdomen: blando, depresible, no doloroso a la palpación, sin masas
+Extremidades: simétricas, llenado capilar distal inmediato, sin edemas
+Piel: íntegra, sin lesiones, no icterica
+SNC: alerta, orientado, lenguaje sin alteraciones
 Base: examen físico de la nota más reciente del contexto.
 Actualizar SOLO los sistemas que el médico mencione en la grabación de hoy.
-Lo no mencionado: conservar igual que en el contexto más reciente.
-Si hay cambio relevante respecto a notas anteriores, mencionarlo explícitamente.
+Lo no mencionado: conservar igual que en el contexto más reciente con el mismo formato de lista.
+Si hay cambio relevante respecto a notas anteriores, indicarlo explícitamente en la línea del sistema afectado.
 
 laboratorios — PARACLÍNICOS DEL DÍA (SOLO si el médico menciona valores concretos en la grabación):
 "Paraclínicos del día [fecha si se menciona]:
 - [Examen]: [valor] — [interpretación] — [comparar con valor previo si existe: 'en descenso desde X', 'estable', 'nuevo hallazgo']"
 Si no se mencionan → cadena vacía "".
 
-analisis — ANÁLISIS: párrafo de 2-4 líneas integrando:
-- Evolución respecto a TODAS las notas previas del contexto (no solo la última)
-- Respuesta al tratamiento
-- Interpretación de paraclínicos con tendencia si hay datos previos
-- Situación clínica actual en contexto del diagnóstico
-Este párrafo debe demostrar que la IA leyó todo el historial, no solo la nota más reciente.
+analisis — ANÁLISIS CLÍNICO:
+Redactar como texto corrido, en un párrafo cohesivo de 3-5 líneas. Integrar: la evolución del paciente respecto a días anteriores, la respuesta al tratamiento instaurado, la interpretación de paraclínicos si los hay (con tendencia comparativa), y el razonamiento clínico que sustenta el plan del día.
+No repetir datos ya registrados en estadoActual, signosVitales o examenFisicoDia.
+No usar viñetas ni numeración. Sonar como un médico internista colombiano escribiendo, no como un formulario de verificación.
 
 ajustesManejo — AJUSTES AL MANEJO:
 Si hay cambios en la grabación:
@@ -182,7 +199,8 @@ Responde ÚNICAMENTE en formato JSON:
   "fechaHora": "Fecha y hora de la nota o fecha actual si no se menciona",
   "diaHospitalizacion": 1,
   "lineaContexto": "Paciente [sexo] de [edad] años, en [ámbito], en contexto de [diagnóstico], día [N] de estancia.",
-  "estadoActual": "Estado clínico del día usando frases clínicas formales. Solo las correspondientes a la grabación.",
+  "estadoActual": "Estado clínico del día usando frases clínicas formales del médico observador.",
+  "referePaciente": "Paciente refiere [...] — en sus propias palabras, sin términos técnicos. Vacío si no reportó nada.",
   "diagnosticosActivos": "1. [Diagnóstico principal] — [CIE-10]\n2. [Comorbilidad] — [CIE-10]",
   "signosVitales": "TA: X/X mmHg | FC: X lpm | FR: X rpm | T°: X°C | SatO2: X%",
   "examenFisicoDia": "Hallazgos del examen físico del día. Sistemas del contexto + cambios de la grabación.",
@@ -568,10 +586,11 @@ async function generateEvolutionNote(
       }
     : undefined
 
-  // Combine lineaContexto + estadoActual into current_illness (shown as "Evolución clínica")
+  // Combine lineaContexto + estadoActual + referePaciente into current_illness
   const lineaContexto = (parsed.lineaContexto as string) || ''
   const estadoActual = (parsed.estadoActual as string) || ''
-  const evolucionClinica = [lineaContexto, estadoActual].filter(Boolean).join('\n\n')
+  const referePaciente = (parsed.referePaciente as string) || ''
+  const evolucionClinica = [lineaContexto, estadoActual, referePaciente].filter(Boolean).join('\n\n')
 
   // Combine ajustesManejo + plan into management_plan
   const ajustesManejo = (parsed.ajustesManejo as string) || ''
@@ -763,7 +782,7 @@ export function formatNoteForClipboard(note: SoapNote, patientName?: string): st
     ]
 
     if (note.current_illness) {
-      lines.push('', 'EVOLUCIÓN CLÍNICA', note.current_illness)
+      lines.push('', note.current_illness)
     }
 
     lines.push(
