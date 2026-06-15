@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import {
   Mic, Square, CheckCircle, Copy, Edit3, Trash2, AlertTriangle,
   ChevronDown, ChevronUp, Zap, RefreshCw, MicOff, Pill, Wifi, Shield,
-  MessageCircle, BookOpen, Send, Monitor, ClipboardList,
+  MessageCircle, BookOpen, Send, Monitor, ClipboardList, X,
 } from 'lucide-react'
 import AppShell from '../components/AppShell'
 import { useAuth } from '../contexts/AuthContext'
@@ -674,6 +674,8 @@ export default function NewConsultation() {
   const [silenceCountdown, setSilenceCountdown] = useState<number | null>(null)
   const [sessionWarning, setSessionWarning] = useState(false)
   const [stoppedByInactivity, setStoppedByInactivity] = useState(false)
+  const [wakeLockBanner, setWakeLockBanner] = useState(true)
+  const [backgroundNotice, setBackgroundNotice] = useState<'continued' | 'paused' | null>(null)
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -687,10 +689,31 @@ export default function NewConsultation() {
   const accumulatedTranscriptRef = useRef('')
   const streamRef = useRef<MediaStream | null>(null)
   const mimeTypeRef = useRef('')
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null)
+  const stageRef = useRef<Stage>('idle')
+
+  // Keep stageRef in sync for use inside event listeners with [] deps
+  useEffect(() => { stageRef.current = stage }, [stage])
+
+  async function requestWakeLock() {
+    if (!('wakeLock' in navigator)) return
+    try {
+      wakeLockRef.current = await navigator.wakeLock.request('screen')
+      wakeLockRef.current.addEventListener('release', () => { wakeLockRef.current = null })
+    } catch { /* Wake Lock not available on this device/browser — silent fallback */ }
+  }
+
+  async function releaseWakeLock() {
+    if (wakeLockRef.current) {
+      await wakeLockRef.current.release().catch(() => {})
+      wakeLockRef.current = null
+    }
+  }
 
   function cleanupRecording() {
     // Used for: component unmount, permission errors.
     // NOT called during normal stop flow (stopRecordingInternal handles that via onstop).
+    releaseWakeLock()
     if (timerRef.current) clearInterval(timerRef.current)
     if (silenceIntervalRef.current) clearInterval(silenceIntervalRef.current)
     if (audioContextRef.current) {
@@ -706,12 +729,23 @@ export default function NewConsultation() {
     return () => cleanupRecording()
   }, [])
 
-  // Resume AudioContext when tab becomes visible again (mobile screen unlock)
+  // Visibility change: resume AudioContext + show background notice + re-acquire wake lock
   useEffect(() => {
     const handleVisibility = () => {
-      if (!document.hidden && audioContextRef.current?.state === 'suspended') {
-        audioContextRef.current.resume().catch(() => {})
+      if (document.hidden) return
+      if (stageRef.current !== 'recording') return
+
+      const ctxSuspended = audioContextRef.current?.state === 'suspended'
+      if (ctxSuspended) {
+        audioContextRef.current!.resume().catch(() => {})
+        setBackgroundNotice('paused')
+      } else {
+        setBackgroundNotice('continued')
       }
+      // Re-acquire wake lock if the browser released it while screen was off
+      if (!wakeLockRef.current) requestWakeLock()
+      // Auto-dismiss the notice after 4 seconds
+      setTimeout(() => setBackgroundNotice(null), 4000)
     }
     document.addEventListener('visibilitychange', handleVisibility)
     return () => document.removeEventListener('visibilitychange', handleVisibility)
@@ -878,6 +912,7 @@ export default function NewConsultation() {
       recorder.start(CHUNK_INTERVAL_MS)
       mediaRecorderRef.current = recorder
       setStage('recording')
+      requestWakeLock()
       setSeconds(0)
       recordingDurationRef.current = 0
 
@@ -906,6 +941,7 @@ export default function NewConsultation() {
     if (isStoppingRef.current) return
     isStoppingRef.current = true   // ← SET FIRST — prevents any re-entry or double finalize
 
+    releaseWakeLock()
     // Clear timers immediately — safe to do before stopping MediaRecorder
     if (timerRef.current) clearInterval(timerRef.current)
     if (silenceIntervalRef.current) clearInterval(silenceIntervalRef.current)
@@ -1115,6 +1151,26 @@ export default function NewConsultation() {
         </div>
 
         <ConfigBanner />
+
+        {/* Mobile pre-recording banner — dismissable, only on touch devices */}
+        {stage === 'idle' && wakeLockBanner && window.matchMedia('(pointer: coarse)').matches && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-start gap-3">
+            <span className="text-lg flex-shrink-0">📱</span>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-amber-800">Mantén la pantalla visible</p>
+              <p className="text-xs text-amber-700 mt-0.5 leading-relaxed">
+                Para garantizar la grabación continua, mantén esta pantalla activa. En iOS la grabación puede pausarse si la pantalla se bloquea.
+              </p>
+            </div>
+            <button
+              onClick={() => setWakeLockBanner(false)}
+              className="text-amber-400 hover:text-amber-700 transition-colors flex-shrink-0 p-0.5"
+              aria-label="Cerrar aviso"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        )}
 
         {lowCreditWarning && (
           <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-start gap-3">
@@ -1345,6 +1401,32 @@ export default function NewConsultation() {
                     <p className="text-xs text-amber-800 font-medium leading-snug">
                       Mantén la pantalla activa durante la grabación para mejores resultados
                     </p>
+                  </div>
+                )}
+
+                {/* Background resume notice */}
+                {backgroundNotice && (
+                  <div className={`flex items-center gap-2 rounded-xl px-3 py-2 ${
+                    backgroundNotice === 'continued'
+                      ? 'bg-emerald-50 border border-emerald-200'
+                      : 'bg-amber-50 border border-amber-200'
+                  }`}>
+                    <span className="text-sm flex-shrink-0">
+                      {backgroundNotice === 'continued' ? '✅' : '⚠️'}
+                    </span>
+                    <p className={`text-xs font-medium flex-1 ${
+                      backgroundNotice === 'continued' ? 'text-emerald-800' : 'text-amber-800'
+                    }`}>
+                      {backgroundNotice === 'continued'
+                        ? 'La grabación continuó en segundo plano'
+                        : 'La grabación se pausó. Toca para continuar.'}
+                    </p>
+                    <button
+                      onClick={() => setBackgroundNotice(null)}
+                      className="text-slate-400 hover:text-slate-600 flex-shrink-0"
+                    >
+                      <X size={12} />
+                    </button>
                   </div>
                 )}
 
