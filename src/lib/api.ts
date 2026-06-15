@@ -50,10 +50,8 @@ EXAMEN FÍSICO basado en evidencia:
 Los hallazgos esperados (cuando se usa el examen por defecto) deben corresponder a la fisiopatología del diagnóstico principal.
 Mencionar los sistemas más relevantes a examinar según la condición del paciente.
 
-ANÁLISIS CLÍNICO basado en evidencia:
-Integrar criterios diagnósticos oficiales y escalas de riesgo validadas cuando aplique.
-Ejemplos: CURB-65 para neumonía, Wells para TEP, SOFA para sepsis, Child-Pugh para cirrosis, TIMI/GRACE para SCA, NIHSS para ACV, PSI para neumonía, APACHE II para UCI, etc.
-Mencionar la escala o criterio utilizado cuando sea relevante para el diagnóstico o el manejo.
+ANÁLISIS — ESTILO DE REDACCIÓN:
+El análisis NO es una exposición académica. Es una nota clínica en prosa, en tercera persona, tal como la escribiría un médico colombiano en una historia clínica real. No uses nunca listas ni numerales dentro del análisis. No amplíes con lo que el médico no dijo.
 
 Las sugerencias son un punto de partida basado en evidencia. El médico tratante es responsable de adaptar el manejo al contexto individual del paciente.
 
@@ -64,7 +62,19 @@ REGLAS POR SECCIÓN:
 4. examenFisico: Si se mencionan hallazgos → úsalos, examenFisicoEsDefault: false. Si NO se mencionan → usa el texto estándar abajo, examenFisicoEsDefault: true.
    TEXTO ESTÁNDAR (usar si no se detectaron hallazgos):
    "CABEZA: NORMOCEFALO, PUPILAS ISOCORICAS NORMOREACTIVAS A LA LUZ, SIN EVIDENCIA DE NISTAGMO, CONJUNTIVAS NORMOCROMICAS, ESCLERAS ANICTERICAS, NARINAS CON ADECUADA ENTRADA DE AIRE, DE CONFIGURACION NORMAL, MUCOSA ORAL HUMEDA, HIDRATADA, OROFARINGE SIN ALTERACIONES.\nCUELLO: MOVIL NO DOLOROSO A LA PALPACION NI MOVILIZACION, NO SE PALPAN ADENOMEGALIAS NI MASAS.\nTORAX: SIMETRICO, EXPANSIBLE, SIN USO DE MUSCULATURA ACCESORIA, PULMONES CON ADECUADA ENTRADA DE AIRE BILATERAL, RUIDOS RESPIRATORIOS BILATERALES SIN AGREGADOS PATOLOGICOS.\nCARDIACO: RUIDOS CARDIACOS RITMICOS, DE BUEN TONO E INTENSIDAD SIN SOPLOS NI AGREGADOS, LLENADO CAPILAR DISTAL INMEDIATO.\nABDOMEN: NO DISTENDIDO, PERISTALSIS POSITIVA, EFECTIVA, BLANDO, DEPRESIBLE, NO DOLOROSO A LA PALPACION SIN EVIDENCIA DE SIGNOS DE IRRITACION PERITONEAL, NO SE PALPAN MASAS NI MEGALIAS.\nGENITOURINARIO: PUÑO PERCUSION RENAL BILATERAL NEGATIVA.\nEXTREMIDADES: SIMETRICAS Y EUTROFICAS CON LLENADO CAPILAR DISTAL INMEDIATO, SIN EDEMAS.\nPIEL: INTEGRA SIN LESIONES, NO SE OBSERVA TINTE ICTERICO.\nSNC: ALERTA, CONSCIENTE, ESFERA MENTAL SIN ALTERACIONES, FUERZA MUSCULAR 5/5, SENSIBILIDAD SIMETRICA SIN ALTERACIONES, PARES CRANEALES NORMALES, LENGUAJE SIN ALTERACIONES, SIN SIGNOS MENINGEOS."
-5. analisis: Razonamiento clínico en texto corrido. OBLIGATORIO: correlación síntomas-hallazgos-diagnóstico, diagnósticos diferenciales pertinentes, justificación de la conducta. Si hay inconsistencias clínicas, menciónalas.
+5. analisis: Redacta en PROSA FLUIDA, tercera persona, como un médico colombiano en una historia clínica real. Sigue esta estructura de tres frases:
+   FRASE 1 — Presentación: "Paciente [masculino/femenino] de [edad] años [con antecedente de X, solo si se mencionó], quien consulta por cuadro clínico de [tiempo de evolución si se mencionó] de evolución caracterizado por [síntomas principales que dictó el médico]."
+   FRASE 2 — Hallazgos al examen: "Al examen físico [hallazgos relevantes mencionados en la consulta]." SOLO si el médico los mencionó. Si no hay hallazgos físicos explícitos en la transcripción, omite esta frase completamente.
+   FRASE 3 — Impresión y conducta: "Por cuadro clínico descrito se considera [diagnóstico o impresión]. Se indica [plan o conducta que el médico dictó explícitamente]."
+   PROHIBIDO EN EL ANÁLISIS:
+   - Listas, viñetas o numerales
+   - Diagnósticos diferenciales que el médico no mencionó
+   - Frases académicas: "es altamente sugestivo de", "es CRÍTICO que", "esta presentación clínica es compatible con", "se correlaciona con"
+   - Escalas de riesgo (CURB-65, Wells, SOFA, etc.) a menos que el médico las haya mencionado
+   - Procedimientos o decisiones que el médico no dictó explícitamente
+   - Mencionar que faltan signos vitales u otros datos
+   - Paréntesis con explicaciones dentro del relato
+   - Cualquier información que no haya dicho el médico durante la grabación
 6. diagnostico: Diagnóstico principal claro en terminología médica formal.
 7. codigoCIE10: Código CIE-10 más específico posible.
 8. descripcionCIE10: Descripción oficial del código CIE-10 seleccionado.
@@ -208,9 +218,9 @@ laboratorios — PARACLÍNICOS DEL DÍA (SOLO si el médico menciona valores con
 Si no se mencionan → cadena vacía "".
 
 analisis — ANÁLISIS CLÍNICO:
-Redactar como texto corrido, en un párrafo cohesivo de 3-5 líneas. Integrar: la evolución del paciente respecto a días anteriores, la respuesta al tratamiento instaurado, la interpretación de paraclínicos si los hay (con tendencia comparativa), y el razonamiento clínico que sustenta el plan del día.
-No repetir datos ya registrados en estadoActual, signosVitales o examenFisicoDia.
-No usar viñetas ni numeración. Sonar como un médico internista colombiano escribiendo, no como un formulario de verificación.
+Prosa fluida, tercera persona, como la escribiría un médico internista colombiano en una nota de evolución real. 2-4 frases máximo. Integra SOLO lo que el médico mencionó en la grabación del día: estado actual del paciente, respuesta al tratamiento, paraclínicos si los mencionó, razonamiento del plan.
+No repetir datos de estadoActual, signosVitales o examenFisicoDia.
+PROHIBIDO: listas, viñetas, frases académicas ("es altamente sugestivo", "se correlaciona con"), escalas de riesgo que el médico no mencionó, información que no aparezca en la grabación del día ni en el contexto base.
 
 ajustesManejo — AJUSTES AL MANEJO:
 Si hay cambios en la grabación:
