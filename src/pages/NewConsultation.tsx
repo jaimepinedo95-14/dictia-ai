@@ -754,6 +754,14 @@ export default function NewConsultation() {
     if (!canStartRecording) { setError(limitReason ?? ''); return }
     setError('')
 
+    // Refresh service worker to prevent stale SW intercepting Groq/Anthropic fetches
+    if ('serviceWorker' in navigator) {
+      try {
+        const registrations = await navigator.serviceWorker.getRegistrations()
+        for (const reg of registrations) { await reg.update() }
+      } catch { /* non-fatal */ }
+    }
+
     // Credit check for institutional users
     if (profile?.clinica_id) {
       const credits = await fetchClinicCredits(profile.clinica_id)
@@ -907,7 +915,7 @@ export default function NewConsultation() {
         finalizeRecording()
       }
 
-      recorder.start(CHUNK_INTERVAL_MS)
+      recorder.start()
       mediaRecorderRef.current = recorder
       setStage('recording')
       requestWakeLock()

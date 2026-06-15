@@ -464,6 +464,8 @@ export async function transcribeAudio(audioBlob: Blob): Promise<string> {
   }
 
   const ext = audioBlob.type.includes('mp4') ? 'mp4' : 'webm'
+  console.log('[Dictia] transcribeAudio — mimeType:', audioBlob.type, '| size:', audioBlob.size, 'bytes | ext:', ext)
+
   const formData = new FormData()
   formData.append('file', audioBlob, `recording.${ext}`)
   formData.append('model', 'whisper-large-v3')
