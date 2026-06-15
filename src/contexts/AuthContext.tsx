@@ -103,7 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .from('user_profiles')
       .select('*')
       .eq('id', userId)
-      .single()
+      .maybeSingle()
     if (data) {
       const p = data as UserProfile
       if (p.email === 'jaimepinedo95@gmail.com') p.role = 'super_admin'
