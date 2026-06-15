@@ -3,7 +3,6 @@ import { Search, Calendar, Clock, Stethoscope, RefreshCw, FileText, Video, Activ
 import AppShell from '../components/AppShell'
 import { useAuth } from '../contexts/AuthContext'
 import { fetchConsultations } from '../lib/db'
-import { MOCK_CONSULTATIONS } from '../lib/mockData'
 import type { Consultation, NoteType } from '../lib/supabase'
 
 function formatDate(dateStr: string) {
@@ -35,10 +34,8 @@ export default function History() {
     async function load() {
       setLoading(true)
       if (isSupabaseMode && user?.id) {
-        const real = await fetchConsultations(user.id, 100)
-        setConsultations(real.length > 0 ? real : MOCK_CONSULTATIONS)
-      } else {
-        setConsultations(MOCK_CONSULTATIONS)
+        const data = await fetchConsultations(user.id, 100)
+        setConsultations(data)
       }
       setLoading(false)
     }
@@ -142,7 +139,7 @@ export default function History() {
                           <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">{c.specialty}</span>
                         )}
                       </div>
-                      <p className="text-xs text-slate-400 mt-1 italic">Nota aprobada — contenido no almacenado por privacidad</p>
+                      <p className="text-xs text-emerald-600 mt-1 font-medium">Nota aprobada</p>
                     </div>
                     <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
                       <div className="flex items-center gap-1 text-xs text-slate-400">

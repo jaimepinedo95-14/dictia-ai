@@ -137,8 +137,10 @@ export default function Dashboard() {
         {/* ── Header ── */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <p className="text-slate-500 text-sm">{greeting},</p>
-            <h1 className="text-2xl font-bold text-slate-900">{profile?.full_name ?? 'Doctor'}</h1>
+            <p className="text-slate-500 text-sm">
+              {greeting}, {profile?.gender === 'doctora' ? 'Doctora' : 'Doctor'}
+            </p>
+            <h1 className="text-2xl font-bold text-slate-900">{profile?.full_name ?? ''}</h1>
             {profile?.specialty && (
               <p className="text-sm text-slate-400 mt-0.5">{profile.specialty}</p>
             )}

@@ -397,6 +397,24 @@ INSTRUCCIONES ADICIONALES — MEDICINA FAMILIAR:
 - Control de crónicos: estado actual vs metas terapéuticas.`,
 }
 
+// Robustly extract and parse JSON from a Claude response.
+// Claude sometimes outputs control chars or markdown fences that break standard parse.
+// Returns null if no valid JSON block can be extracted.
+function tryParseJson(raw: string): Record<string, unknown> | null {
+  const match = raw.match(/{[sS]*}/)
+  if (!match) return null
+  try {
+    return JSON.parse(match[0]) as Record<string, unknown>
+  } catch {
+    const cleaned = match[0].replace(/[ --]/g, '')
+    try {
+      return JSON.parse(cleaned) as Record<string, unknown>
+    } catch {
+      return null
+    }
+  }
+}
+
 export function isGroqConfigured(): boolean {
   return Boolean(GROQ_API_KEY && !GROQ_API_KEY.includes('aqui_va'))
 }
@@ -515,12 +533,15 @@ export async function generateSoapNote(transcript: string, options: GenerateOpti
 
   parts.push(`\nTranscripción de la consulta:\n\n${transcript}`)
 
-  const raw = await callClaude(systemPrompt, parts.join('\n'), 4000)
-
-  const jsonMatch = raw.match(/\{[\s\S]*\}/)
-  if (!jsonMatch) throw new Error('Claude no devolvió JSON válido. Intenta de nuevo.')
-
-  const parsed = JSON.parse(jsonMatch[0]) as Record<string, unknown>
+  const userMessage = parts.join('\n')
+  let raw = await callClaude(systemPrompt, userMessage, 4000)
+  let parsed = tryParseJson(raw)
+  if (!parsed) {
+    // Retry once — transient failure or malformed JSON due to special chars in transcript
+    raw = await callClaude(systemPrompt, userMessage, 4000)
+    parsed = tryParseJson(raw)
+    if (!parsed) throw new Error('No se pudo procesar la consulta. Intenta grabar de nuevo.')
+  }
 
   const physicalExamIsDefault = Boolean(parsed.examenFisicoEsDefault)
   let physicalExam = (parsed.examenFisico as string) || (physicalExamIsDefault ? DEFAULT_PHYSICAL_EXAM : '')
@@ -608,12 +629,14 @@ async function generateEvolutionNote(
 
   parts.push(`\nGRABACIÓN DEL DÍA (transcripción del médico hoy):\n\n${transcript}`)
 
-  const raw = await callClaude(systemPrompt, parts.join('\n'), 4500)
-
-  const jsonMatch = raw.match(/\{[\s\S]*\}/)
-  if (!jsonMatch) throw new Error('Claude no devolvió JSON válido para nota de evolución.')
-
-  const parsed = JSON.parse(jsonMatch[0]) as Record<string, unknown>
+  const userMessage = parts.join('\n')
+  let raw = await callClaude(systemPrompt, userMessage, 4500)
+  let parsed = tryParseJson(raw)
+  if (!parsed) {
+    raw = await callClaude(systemPrompt, userMessage, 4500)
+    parsed = tryParseJson(raw)
+    if (!parsed) throw new Error('No se pudo procesar la nota de evolución. Intenta de nuevo.')
+  }
 
   const rawShield = parsed.blindajeDocumental as Record<string, unknown> | undefined
   const glosaShield: GlosaShield | undefined = rawShield
@@ -685,12 +708,14 @@ async function generateTransferNote(
 
   parts.push(`\nGRABACIÓN AL INGRESO (transcripción del médico al recibir al paciente):\n\n${transcript}`)
 
-  const raw = await callClaude(systemPrompt, parts.join('\n'), 4500)
-
-  const jsonMatch = raw.match(/\{[\s\S]*\}/)
-  if (!jsonMatch) throw new Error('Claude no devolvió JSON válido para nota de traslado.')
-
-  const parsed = JSON.parse(jsonMatch[0]) as Record<string, unknown>
+  const userMessage = parts.join('\n')
+  let raw = await callClaude(systemPrompt, userMessage, 4500)
+  let parsed = tryParseJson(raw)
+  if (!parsed) {
+    raw = await callClaude(systemPrompt, userMessage, 4500)
+    parsed = tryParseJson(raw)
+    if (!parsed) throw new Error('No se pudo procesar la nota de traslado. Intenta de nuevo.')
+  }
 
   const rawShield = parsed.blindajeDocumental as Record<string, unknown> | undefined
   const glosaShield: GlosaShield | undefined = rawShield
@@ -787,15 +812,17 @@ Responde ÚNICAMENTE en formato JSON con esta estructura exacta:
   ]
 }`
 
-  const raw = await callClaude(systemPrompt, `Diagnóstico: ${diagnosis}`, 1800)
-
-  const jsonMatch = raw.match(/\{[\s\S]*\}/)
-  if (!jsonMatch) return {
+  const evidenceMessage = `Diagnóstico: ${diagnosis}`
+  let raw = await callClaude(systemPrompt, evidenceMessage, 1800)
+  let parsed = tryParseJson(raw) as Partial<ClinicalAnalysis> | null
+  if (!parsed) {
+    raw = await callClaude(systemPrompt, evidenceMessage, 1800)
+    parsed = tryParseJson(raw) as Partial<ClinicalAnalysis> | null
+  }
+  if (!parsed) return {
     diferenciales: ['No se pudo generar el análisis en este momento.'],
     criterios: [], paraclínicos: [], alertas: [], tratamiento: [], complicaciones: [],
   }
-
-  const parsed = JSON.parse(jsonMatch[0]) as Partial<ClinicalAnalysis>
   return {
     diferenciales: parsed.diferenciales ?? [],
     criterios: parsed.criterios ?? [],

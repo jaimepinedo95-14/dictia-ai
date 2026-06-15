@@ -41,6 +41,7 @@ const buildMockProfile = (overrides?: Partial<UserProfile>): UserProfile => ({
   email: 'dr.garcia@dictia.health',
   country: 'Colombia',
   specialty: 'Medicina General',
+  gender: 'doctor',
   plan: 'free_trial',
   consultations_used: 47,
   consultations_limit: 999999,
@@ -137,6 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         full_name: data.full_name,
         country: data.country,
         specialty: data.specialty,
+        gender: data.gender ?? 'doctor',
         consultations_used: 0,
         trial_ends_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
       })
@@ -149,11 +151,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: authData, error } = await supabase.auth.signUp({ email, password })
     if (error) return { error }
 
-    // session is null when Supabase requires email confirmation
-    if (!authData.session) {
-      return { error: null, emailConfirmationRequired: true }
-    }
-
+    // Insert profile immediately — even when email confirmation is required,
+    // auth.users gets the row but session is null. We must insert the profile now
+    // because fetchProfile() runs on first login and finds nothing otherwise.
     if (authData.user) {
       const { error: insertError } = await supabase.from('user_profiles').insert({
         id: authData.user.id,
@@ -161,6 +161,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         full_name: data.full_name ?? '',
         country: data.country ?? 'Colombia',
         specialty: data.specialty ?? 'Medicina General',
+        gender: data.gender ?? 'doctor',
         plan: 'free_trial',
         consultations_used: 0,
         consultations_limit: 999999,
@@ -170,6 +171,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         subscription_status: 'pending',
       })
       if (insertError) return { error: insertError }
+    }
+
+    // session is null when Supabase requires email confirmation
+    if (!authData.session) {
+      return { error: null, emailConfirmationRequired: true }
     }
 
     return { error: null }

@@ -305,7 +305,7 @@ function AIAssistant({ note }: { note: SoapNote }) {
           <MessageCircle size={16} className="text-indigo-500" />
           <span className="text-sm font-bold text-slate-700">Pregúntale a Dictia sobre esta nota</span>
           <span className="text-xs bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full font-medium">
-            ~$3 COP / pregunta
+            Incluido en tu plan
           </span>
         </div>
         {open ? <ChevronUp size={16} className="text-slate-400 flex-shrink-0" /> : <ChevronDown size={16} className="text-slate-400 flex-shrink-0" />}

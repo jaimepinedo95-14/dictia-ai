@@ -16,6 +16,7 @@ export default function RegisterPage() {
     password: '',
     country: '',
     specialty: '',
+    gender: 'doctor',
   })
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -30,7 +31,7 @@ export default function RegisterPage() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    const { fullName, email, password, country, specialty } = form
+    const { fullName, email, password, country, specialty, gender } = form
 
     if (!fullName || !email || !password || !country || !specialty) {
       setError('Por favor completa todos los campos.')
@@ -52,6 +53,7 @@ export default function RegisterPage() {
       full_name: fullName,
       country,
       specialty,
+      gender: gender as 'doctor' | 'doctora',
       accepted_terms_at: new Date().toISOString(),
       accepted_terms_version: TERMS_VERSION,
     })
@@ -112,6 +114,26 @@ export default function RegisterPage() {
                 {error}
               </div>
             )}
+
+            <div>
+              <label className="label">Título</label>
+              <div className="grid grid-cols-2 gap-3">
+                {(['doctor', 'doctora'] as const).map(g => (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => update('gender', g)}
+                    className={`py-3 rounded-xl border-2 font-semibold text-sm transition-all ${
+                      form.gender === g
+                        ? 'border-primary-500 bg-primary-50 text-primary-700'
+                        : 'border-slate-200 text-slate-600 hover:border-primary-200'
+                    }`}
+                  >
+                    {g === 'doctor' ? 'Doctor' : 'Doctora'}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             <div>
               <label className="label" htmlFor="fullName">Nombre completo</label>

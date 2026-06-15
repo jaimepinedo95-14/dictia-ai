@@ -1,11 +1,59 @@
-import { Check, Zap } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Check, Zap, CheckCircle, AlertCircle } from 'lucide-react'
 import AppShell from '../components/AppShell'
 import { useAuth } from '../contexts/AuthContext'
 import { PLANS } from '../lib/mockData'
+import { fetchSavingsStats } from '../lib/db'
 import { Link } from 'react-router-dom'
+import type { UserProfile } from '../lib/supabase'
 
 export default function Billing() {
-  const { profile } = useAuth()
+  const { profile, updateProfile, isSupabaseMode, user } = useAuth()
+  const [activatingPlan, setActivatingPlan] = useState<string | null>(null)
+  const [successPlan, setSuccessPlan] = useState<string | null>(null)
+  const [planError, setPlanError] = useState('')
+  const [monthCount, setMonthCount] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (isSupabaseMode && user?.id) {
+      fetchSavingsStats(user.id).then(stats => setMonthCount(stats.month))
+    }
+  }, [user?.id, isSupabaseMode])
+
+  async function handleActivatePlan(planId: string) {
+    const planData = PLANS.find(p => p.id === planId)
+    if (!planData) return
+    setActivatingPlan(planId)
+    setPlanError('')
+    setSuccessPlan(null)
+    try {
+      await updateProfile({
+        plan: planId as UserProfile['plan'],
+        consultations_limit: planData.consultations,
+        subscription_status: 'active',
+      })
+      setSuccessPlan(planId)
+      setTimeout(() => setSuccessPlan(null), 4000)
+    } catch {
+      setPlanError('Error al actualizar el plan. Intenta de nuevo.')
+    } finally {
+      setActivatingPlan(null)
+    }
+  }
+
+  const currentPlanData = PLANS.find(p => p.id === profile?.plan)
+  const monthlyLimit = currentPlanData?.consultations ?? null
+
+  const usageText = () => {
+    if (profile?.plan === 'free_trial') {
+      const used = profile?.trial_notes_used ?? profile?.consultations_used ?? 0
+      const limit = profile?.trial_notes_limit ?? 10
+      return `Período de prueba · ${used} / ${limit} notas usadas`
+    }
+    const used = monthCount ?? 0
+    const limit = monthlyLimit
+    return `${used} / ${limit !== null ? limit : '∞'} consultas usadas este mes`
+  }
 
   return (
     <AppShell>
@@ -15,20 +63,31 @@ export default function Billing() {
           <p className="text-slate-500 text-sm mt-1">Administra tu suscripción y métodos de pago</p>
         </div>
 
+        {/* Feedback banners */}
+        {successPlan && (
+          <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-2xl px-5 py-3">
+            <CheckCircle size={18} className="text-emerald-600 flex-shrink-0" />
+            <p className="text-sm font-semibold text-emerald-800">
+              Plan actualizado correctamente a {PLANS.find(p => p.id === successPlan)?.name}.
+            </p>
+          </div>
+        )}
+        {planError && (
+          <div className="flex items-center gap-3 bg-red-50 border border-red-100 rounded-2xl px-5 py-3">
+            <AlertCircle size={18} className="text-red-600 flex-shrink-0" />
+            <p className="text-sm text-red-700">{planError}</p>
+          </div>
+        )}
+
         {/* Current plan summary */}
         <div className="card border-2 border-primary-100 bg-primary-50">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
               <p className="text-xs font-bold text-primary-600 uppercase tracking-wider mb-1">Plan actual</p>
               <h2 className="text-xl font-bold text-slate-900 capitalize">
-                {profile?.plan === 'free_trial' ? 'Prueba gratuita' : profile?.plan}
+                {profile?.plan === 'free_trial' ? 'Prueba gratuita' : currentPlanData?.name ?? profile?.plan}
               </h2>
-              <p className="text-sm text-slate-500 mt-1">
-                {profile?.plan === 'free_trial'
-                  ? `Período de prueba · ${profile?.consultations_used ?? 0} consultas usadas`
-                  : `${profile?.consultations_used ?? 0} / ${profile?.consultations_limit} consultas usadas este mes`
-                }
-              </p>
+              <p className="text-sm text-slate-500 mt-1">{usageText()}</p>
             </div>
             {profile?.plan === 'free_trial' && profile?.trial_ends_at && (
               <div className="bg-amber-100 border border-amber-200 rounded-xl px-4 py-2">
@@ -46,6 +105,8 @@ export default function Billing() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
             {PLANS.filter(p => p.id !== 'free_trial').map((plan) => {
               const isCurrent = profile?.plan === plan.id
+              const isLoading = activatingPlan === plan.id
+              const isSuccess = successPlan === plan.id
               return (
                 <div
                   key={plan.id}
@@ -57,7 +118,7 @@ export default function Billing() {
                       : 'border-slate-200 bg-white hover:border-primary-200'
                   }`}
                 >
-                  {plan.badge && (
+                  {plan.badge && !isCurrent && (
                     <div className={`absolute -top-3 left-1/2 -translate-x-1/2 text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap ${
                       plan.highlight ? 'bg-primary-600 text-white' : 'bg-amber-400 text-amber-900'
                     }`}>
@@ -89,16 +150,30 @@ export default function Billing() {
                   </ul>
 
                   <button
-                    disabled={isCurrent}
+                    disabled={isCurrent || isLoading}
+                    onClick={() => !isCurrent && handleActivatePlan(plan.id)}
                     className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-all ${
                       isCurrent
                         ? 'bg-emerald-100 text-emerald-700 cursor-default'
+                        : isSuccess
+                        ? 'bg-emerald-500 text-white'
                         : plan.highlight
                         ? 'bg-primary-600 text-white hover:bg-primary-700'
                         : 'bg-slate-900 text-white hover:bg-slate-700'
                     }`}
                   >
-                    {isCurrent ? 'Plan actual' : (
+                    {isCurrent ? (
+                      'Plan actual'
+                    ) : isLoading ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Activando...
+                      </span>
+                    ) : isSuccess ? (
+                      <span className="flex items-center justify-center gap-1.5">
+                        <CheckCircle size={14} /> Activado
+                      </span>
+                    ) : (
                       <span className="flex items-center justify-center gap-1.5">
                         <Zap size={13} /> Activar
                       </span>
