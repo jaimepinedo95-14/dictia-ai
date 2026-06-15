@@ -29,9 +29,6 @@ const STATUS_MAP: Record<string, { label: string; cls: string }> = {
   cancelled: { label: 'Bloqueado', cls: 'bg-red-100 text-red-700' },
 }
 
-const PLAN_NAMES: Record<string, string> = {
-  basic: 'Básico', standard: 'Estándar', advanced: 'Avanzado', pro: 'Pro', free_trial: 'Trial',
-}
 
 const PLAN_PRICES: Record<string, number> = {
   basic: 39900, standard: 54900, advanced: 69900, pro: 99900,
@@ -163,7 +160,7 @@ export default function AdminDashboard() {
         {/* Logo */}
         <div className="px-5 py-5 border-b border-slate-800">
           <div className="flex items-center gap-2 mb-1">
-            <Logo size={28} />
+            <Logo size="md" />
             <span className="text-white font-bold text-lg">Dictia</span>
           </div>
           <div className="flex items-center gap-1.5 mt-2">

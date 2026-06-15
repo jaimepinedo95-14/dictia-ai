@@ -92,8 +92,7 @@ function SoapCard({
   const isExpanded = expandedSection === key
   const isLong = value.length > 220
   const isPhysicalExam = key === 'physical_exam'
-  const physicalExamIsDefault = isPhysicalExam && note.physical_exam_is_default
-  const isTelemed = isPhysicalExam && note.is_telemedicine
+const isTelemed = isPhysicalExam && note.is_telemedicine
 
   return (
     <div className={`bg-white rounded-2xl border-2 p-5 transition-all duration-200 shadow-sm ${
