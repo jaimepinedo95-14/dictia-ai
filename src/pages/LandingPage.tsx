@@ -157,23 +157,28 @@ export default function LandingPage() {
                 Prueba gratis <ArrowRight size={14} />
               </Link>
             </div>
-            <button className="md:hidden p-2 rounded-lg hover:bg-slate-100 transition-colors" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
-              {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
-            </button>
+            {/* Mobile: CTAs always visible + hamburger for nav links */}
+            <div className="md:hidden flex items-center gap-2">
+              <Link to="/login" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors px-1">
+                Iniciar sesión
+              </Link>
+              <Link to="/registro" className="inline-flex items-center gap-1 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold px-3 py-2 rounded-xl transition-colors whitespace-nowrap">
+                Prueba gratis
+              </Link>
+              <button className="p-2 rounded-lg hover:bg-slate-100 transition-colors flex-shrink-0" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+                {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+              </button>
+            </div>
           </div>
         </div>
         {mobileMenuOpen && (
-          <div className="md:hidden border-t border-slate-100 bg-white px-4 py-4 space-y-1">
+          <div className="md:hidden border-t border-slate-100 bg-white px-4 py-3 space-y-1">
             {['#como-funciona', '#por-que-dictia', '#precios', '#faq'].map((href, i) => (
               <a key={href} href={href} onClick={() => setMobileMenuOpen(false)}
                 className="block px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-xl transition-colors">
                 {['Cómo funciona', '¿Por qué Dictia?', 'Precios', 'FAQ'][i]}
               </a>
             ))}
-            <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
-              <Link to="/login" className="text-center py-2.5 text-sm font-medium text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">Iniciar sesión</Link>
-              <Link to="/registro" className="text-center py-2.5 text-sm font-semibold bg-slate-900 text-white rounded-xl">Prueba gratis</Link>
-            </div>
           </div>
         )}
       </header>
