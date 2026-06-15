@@ -18,6 +18,7 @@ import type { SoapNote, NoteType } from '../lib/supabase'
 
 type Stage = 'idle' | 'recording' | 'processing' | 'done' | 'error'
 type ProcessingStep = 'transcribing' | 'generating' | null
+type RecordingMode = 'consulta' | 'dictado'
 
 type SoapSection = {
   key: keyof SoapNote
@@ -660,13 +661,14 @@ export default function NewConsultation() {
   const [specialtyOverride, setSpecialtyOverride] = useState(profile?.specialty ?? '')
   const [previousContext, setPreviousContext] = useState('')
   const [hospitalizationDay, setHospitalizationDay] = useState(1)
-  const [accumulatedTranscript, setAccumulatedTranscript] = useState('')
   const [voiceLevel, setVoiceLevel] = useState(0)
   const [silenceCountdown, setSilenceCountdown] = useState<number | null>(null)
   const [sessionWarning, setSessionWarning] = useState(false)
   const [stoppedByInactivity, setStoppedByInactivity] = useState(false)
   const [wakeLockBanner, setWakeLockBanner] = useState(true)
   const [backgroundNotice, setBackgroundNotice] = useState<'continued' | 'paused' | null>(null)
+  const [recordingMode, setRecordingMode] = useState<RecordingMode>('consulta')
+  const [emptyTranscript, setEmptyTranscript] = useState(false)
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -678,6 +680,7 @@ export default function NewConsultation() {
   const pendingChunkCountRef = useRef(0)
   const isStoppingRef = useRef(false)
   const accumulatedTranscriptRef = useRef('')
+  const audioChunksRef = useRef<Blob[]>([])
   const streamRef = useRef<MediaStream | null>(null)
   const mimeTypeRef = useRef('')
   const wakeLockRef = useRef<WakeLockSentinel | null>(null)
@@ -761,11 +764,12 @@ export default function NewConsultation() {
 
     // Reset accumulated state
     accumulatedTranscriptRef.current = ''
-    setAccumulatedTranscript('')
+    audioChunksRef.current = []
     setVoiceLevel(0)
     setSilenceCountdown(null)
     setSessionWarning(false)
     setStoppedByInactivity(false)
+    setEmptyTranscript(false)
     isStoppingRef.current = false
     pendingChunkCountRef.current = 0
     silenceStartRef.current = null
@@ -785,7 +789,13 @@ export default function NewConsultation() {
         } catch { /* Use only display audio if mic fails */ }
       } else {
         stream = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 16000 },
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            sampleRate: 16000,
+            channelCount: 1,
+          },
           video: false,
         })
       }
@@ -808,7 +818,31 @@ export default function NewConsultation() {
       const analyser = audioCtx.createAnalyser()
       analyser.fftSize = 256
       analyserRef.current = analyser
-      audioCtx.createMediaStreamSource(stream).connect(analyser)
+
+      const micSource = audioCtx.createMediaStreamSource(stream)
+      micSource.connect(analyser)
+
+      // ── Audio processing chain: HighPass + Compressor (non-telemedicine only) ──
+      let recordingStream = stream
+      if (noteType !== 'telemedicina') {
+        const highPassFilter = audioCtx.createBiquadFilter()
+        highPassFilter.type = 'highpass'
+        highPassFilter.frequency.value = 80
+
+        const compressor = audioCtx.createDynamicsCompressor()
+        compressor.threshold.value = -24
+        compressor.knee.value = 30
+        compressor.ratio.value = 12
+        compressor.attack.value = 0.003
+        compressor.release.value = 0.25
+
+        const processedDest = audioCtx.createMediaStreamDestination()
+        micSource.connect(highPassFilter)
+        highPassFilter.connect(compressor)
+        compressor.connect(processedDest)
+        recordingStream = processedDest.stream
+      }
+
       const freqData = new Uint8Array(analyser.frequencyBinCount)
       silenceStartRef.current = null
 
@@ -844,37 +878,12 @@ export default function NewConsultation() {
         MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : ''
       mimeTypeRef.current = mimeType
 
-      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
+      const recorder = new MediaRecorder(recordingStream, mimeType ? { mimeType } : undefined)
 
-      recorder.ondataavailable = async (e) => {
-        if (e.data.size < 500) {
-          // Tiny chunk (empty) — if stopping with no chunks, finalize now
-          if (isStoppingRef.current && pendingChunkCountRef.current === 0) finalizeRecording()
-          return
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          audioChunksRef.current.push(e.data)
         }
-        pendingChunkCountRef.current++
-        const chunkBlob = new Blob([e.data], { type: mimeType || 'audio/webm' })
-
-        let chunkText = ''
-        for (let attempt = 0; attempt < 3; attempt++) {
-          try {
-            chunkText = await transcribeAudio(chunkBlob)
-            break
-          } catch {
-            if (attempt < 2) await new Promise(r => setTimeout(r, 600))
-            else chunkText = '[segmento no transcrito]'
-          }
-        }
-
-        if (chunkText && chunkText !== '[segmento no transcrito]') {
-          accumulatedTranscriptRef.current = accumulatedTranscriptRef.current
-            ? accumulatedTranscriptRef.current + ' ' + chunkText
-            : chunkText
-          setAccumulatedTranscript(accumulatedTranscriptRef.current)
-        }
-
-        pendingChunkCountRef.current--
-        if (isStoppingRef.current && pendingChunkCountRef.current === 0) finalizeRecording()
       }
 
       recorder.onerror = () => {
@@ -887,9 +896,7 @@ export default function NewConsultation() {
       }
 
       recorder.onstop = () => {
-        // Stream tracks are stopped HERE — after the final ondataavailable has fired.
-        // Stopping tracks BEFORE calling recorder.stop() (the previous bug) caused
-        // the final audio chunk to arrive empty because the source was already dead.
+        // onstop fires after the final ondataavailable — all chunks are collected at this point.
         streamRef.current?.getTracks().forEach(t => t.stop())
         streamRef.current = null
         if (audioContextRef.current) {
@@ -897,7 +904,7 @@ export default function NewConsultation() {
           audioContextRef.current = null
         }
         analyserRef.current = null
-        if (pendingChunkCountRef.current === 0) finalizeRecording()
+        finalizeRecording()
       }
 
       recorder.start(CHUNK_INTERVAL_MS)
@@ -954,7 +961,7 @@ export default function NewConsultation() {
         audioContextRef.current = null
       }
       analyserRef.current = null
-      if (pendingChunkCountRef.current === 0) finalizeRecording()
+      finalizeRecording()
     }
   }
 
@@ -963,44 +970,85 @@ export default function NewConsultation() {
   }
 
   async function finalizeRecording() {
-    const fullTranscript = accumulatedTranscriptRef.current.trim()
-    if (!fullTranscript) {
-      setError('No se detectó audio transcribible en la grabación. Verifica el micrófono e intenta de nuevo.')
+    const chunks = audioChunksRef.current
+    if (chunks.length === 0) {
+      setEmptyTranscript(true)
+      setError('No se detectó audio en la grabación.')
       setStage('error')
       return
     }
-    setTranscript(fullTranscript)
-    await processTranscript(fullTranscript)
-  }
-
-  async function processTranscript(transcriptText: string) {
-    setError('')
+    const audioBlob = new Blob(chunks, { type: mimeTypeRef.current || 'audio/webm' })
+    if (audioBlob.size < 1000) {
+      setEmptyTranscript(true)
+      setError('No se detectó audio. Verifica que el micrófono esté funcionando y vuelve a intentarlo.')
+      setStage('error')
+      return
+    }
+    setEmptyTranscript(false)
+    setProcessingStep('transcribing')
     try {
-      setProcessingStep('generating')
-      const recentNotes = await fetchRecentApprovedNotes()
-      const generatedNote = await generateSoapNote(transcriptText, {
-        specialty: (specialtyOverride || profile?.specialty) ?? undefined,
-        noteStyle: profile?.note_style,
-        noteType,
-        isTelemedicine: noteType === 'telemedicina',
-        recentNotes: recentNotes.length > 0 ? recentNotes : undefined,
-        previousContext: previousContext || undefined,
-        hospitalizationDay: noteType === 'evolucion' ? hospitalizationDay : undefined,
-      })
-      setNote(generatedNote)
-      setTranscript('')
-      setStage('done')
+      const fullTranscript = await transcribeAudio(audioBlob)
+      if (!fullTranscript.trim()) {
+        setEmptyTranscript(true)
+        setError('No se detectó voz en la grabación. Verifica que el micrófono esté funcionando.')
+        setStage('error')
+        setProcessingStep(null)
+        return
+      }
+      setTranscript(fullTranscript)
+      await processTranscript(fullTranscript)
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Error inesperado al generar la nota'
+      const msg = err instanceof Error ? err.message : 'Error al procesar el audio'
       setError(msg)
       setStage('error')
-    } finally {
       setProcessingStep(null)
     }
   }
 
+  async function processTranscript(transcriptText: string) {
+    setError('')
+    setProcessingStep('generating')
+    const MAX_ATTEMPTS = 3
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      try {
+        const recentNotes = await fetchRecentApprovedNotes()
+        const generatedNote = await generateSoapNote(transcriptText, {
+          specialty: (specialtyOverride || profile?.specialty) ?? undefined,
+          noteStyle: profile?.note_style,
+          noteType,
+          isTelemedicine: noteType === 'telemedicina',
+          recentNotes: recentNotes.length > 0 ? recentNotes : undefined,
+          previousContext: previousContext || undefined,
+          hospitalizationDay: noteType === 'evolucion' ? hospitalizationDay : undefined,
+          isDictation: recordingMode === 'dictado',
+        })
+        setNote(generatedNote)
+        setTranscript('')
+        setStage('done')
+        setProcessingStep(null)
+        return
+      } catch (err) {
+        if (attempt < MAX_ATTEMPTS - 1) {
+          await new Promise(r => setTimeout(r, attempt === 0 ? 1500 : 2500))
+          continue
+        }
+        const raw = err instanceof Error ? err.message : ''
+        const msg = raw.includes('429')
+          ? 'Límite de solicitudes alcanzado. Espera un momento y vuelve a intentar.'
+          : raw.includes('Anthropic')
+          ? 'Error al conectar con Anthropic. Revisa tu conexión e intenta de nuevo.'
+          : raw.includes('Groq')
+          ? 'Error en la transcripción (Groq). Verifica tu API key.'
+          : raw || 'Error inesperado al generar la nota'
+        setError(msg)
+        setStage('error')
+        setProcessingStep(null)
+      }
+    }
+  }
+
   async function retryProcessing() {
-    const t = accumulatedTranscriptRef.current || transcript
+    const t = transcript
     if (!t) { setStage('idle'); return }
     setStage('processing')
     await processTranscript(t)
@@ -1133,7 +1181,7 @@ export default function NewConsultation() {
             {stage === 'recording' && 'Atiende a tu paciente con normalidad'}
             {stage === 'processing' && (
               processingStep === 'transcribing'
-                ? 'Transcribiendo audio...'
+                ? 'Procesando audio...'
                 : 'Generando nota médica...'
             )}
             {stage === 'done' && 'Nota generada — revisa y aprueba'}
@@ -1207,6 +1255,42 @@ export default function NewConsultation() {
                       )
                     })}
                   </div>
+                </div>
+
+                {/* Recording mode selector */}
+                <div>
+                  <label className="label text-center mb-3">Tipo de grabación</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {([
+                      { mode: 'consulta' as RecordingMode, icon: '🎙️', label: 'Consulta con paciente', sublabel: 'El paciente habla durante la consulta' },
+                      { mode: 'dictado' as RecordingMode, icon: '📝', label: 'Dictado por médico', sublabel: 'Solo habla el médico' },
+                    ]).map(({ mode, icon, label, sublabel }) => {
+                      const active = recordingMode === mode
+                      return (
+                        <button
+                          key={mode}
+                          onClick={() => setRecordingMode(mode)}
+                          className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all text-center ${
+                            active
+                              ? 'border-primary-500 bg-primary-50 text-primary-700'
+                              : 'border-slate-200 text-slate-700 hover:border-primary-200 hover:bg-primary-50'
+                          }`}
+                        >
+                          <span className="text-xl">{icon}</span>
+                          <span className="text-xs font-bold leading-tight">{label}</span>
+                          <span className={`text-xs leading-tight ${active ? 'text-primary-500' : 'text-slate-400'}`}>{sublabel}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {recordingMode === 'dictado' && (
+                    <div className="flex items-start gap-2 bg-primary-50 border border-primary-200 rounded-xl px-3 py-2.5 mt-2">
+                      <span className="text-sm flex-shrink-0">💡</span>
+                      <p className="text-xs text-primary-700 leading-relaxed">
+                        Dicta el caso en voz alta como si se lo contaras a un colega. Incluye: datos del paciente, síntomas, diagnóstico y plan.
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Telemedicina instruction */}
@@ -1352,7 +1436,7 @@ export default function NewConsultation() {
                 <p className="text-slate-600 font-medium text-lg">
                   {stage === 'idle' && 'Presiona para iniciar la grabación'}
                   {stage === 'recording' && 'Grabando — presiona para detener'}
-                  {stage === 'processing' && 'Generando nota médica...'}
+                  {stage === 'processing' && (processingStep === 'transcribing' ? 'Procesando audio...' : 'Generando nota médica...')}
                 </p>
                 {stage === 'recording' && noteType === 'telemedicina' && (
                   <p className="text-sm text-sky-600 mt-1 font-medium">📡 Grabando audio del sistema</p>
@@ -1442,15 +1526,6 @@ export default function NewConsultation() {
                   </div>
                 )}
 
-                {/* Accumulated transcript preview */}
-                {accumulatedTranscript && (
-                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
-                    <p className="text-xs font-semibold text-slate-400 mb-1.5">Transcripción en curso</p>
-                    <div className="max-h-24 overflow-y-auto">
-                      <p className="text-xs text-slate-600 italic leading-relaxed">"{accumulatedTranscript}"</p>
-                    </div>
-                  </div>
-                )}
               </div>
             )}
 
@@ -1467,15 +1542,11 @@ export default function NewConsultation() {
                     <div className="w-2.5 h-2.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   </div>
                   <span className="font-medium text-primary-700">
-                    {noteType === 'evolucion' ? 'Generando nota de evolución...' : 'Generando historia clínica SOAP...'}
+                    {processingStep === 'transcribing'
+                      ? 'Procesando audio...'
+                      : noteType === 'evolucion' ? 'Generando nota de evolución...' : 'Generando historia clínica SOAP...'}
                   </span>
                 </div>
-                {accumulatedTranscript && (
-                  <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
-                    <p className="text-xs font-semibold text-slate-400 mb-1.5">Transcripción acumulada</p>
-                    <p className="text-xs text-slate-600 line-clamp-4 italic">"{accumulatedTranscript.slice(0, 300)}{accumulatedTranscript.length > 300 ? '...' : ''}"</p>
-                  </div>
-                )}
               </div>
             )}
           </div>
@@ -1488,19 +1559,49 @@ export default function NewConsultation() {
               <MicOff size={28} className="text-red-500" />
             </div>
             <div>
-              <h3 className="font-bold text-red-800 text-lg">Error al procesar la consulta</h3>
-              <p className="text-red-600 text-sm mt-2 max-w-sm mx-auto leading-relaxed">{error}</p>
+              <h3 className="font-bold text-red-800 text-lg">
+                {emptyTranscript ? 'No se detectó audio suficiente' : 'Error al procesar la consulta'}
+              </h3>
+              <p className="text-red-600 text-sm mt-2 max-w-sm mx-auto leading-relaxed">
+                {emptyTranscript
+                  ? 'No se captó voz en la grabación. Verifica el micrófono o dicta el caso manualmente.'
+                  : error}
+              </p>
             </div>
-            <div className="flex gap-3 justify-center">
-              {accumulatedTranscriptRef.current && (
+            <div className="flex flex-wrap gap-3 justify-center">
+              {emptyTranscript && (
+                <button
+                  onClick={() => { setStage('idle'); setError(''); setEmptyTranscript(false); setRecordingMode('dictado') }}
+                  className="btn-primary text-sm py-2.5 px-5"
+                >
+                  📝 Dictar manualmente
+                </button>
+              )}
+              {!emptyTranscript && transcript && (
                 <button onClick={retryProcessing} className="btn-primary text-sm py-2.5 px-5">
                   <RefreshCw size={15} /> Reintentar
                 </button>
               )}
-              <button onClick={() => { setStage('idle'); setError('') }} className="btn-ghost text-sm py-2.5 px-5 border border-slate-200">
+              <button onClick={() => { setStage('idle'); setError(''); setEmptyTranscript(false) }} className="btn-ghost text-sm py-2.5 px-5 border border-slate-200">
                 Grabar de nuevo
               </button>
             </div>
+            {!emptyTranscript && transcript && (
+              <div className="mt-4 border-t border-red-200 pt-4 text-left">
+                <p className="text-xs font-semibold text-red-700 mb-2">
+                  No pudimos generar la nota. Aquí está tu transcripción:
+                </p>
+                <div className="bg-white border border-red-100 rounded-xl p-3 max-h-40 overflow-y-auto">
+                  <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-wrap">{transcript}</p>
+                </div>
+                <button
+                  onClick={() => navigator.clipboard.writeText(transcript)}
+                  className="mt-2 text-xs text-red-600 hover:text-red-800 font-medium underline"
+                >
+                  Copiar transcripción
+                </button>
+              </div>
+            )}
           </div>
         )}
 

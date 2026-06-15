@@ -57,6 +57,30 @@ function IpBlockScreen() {
   )
 }
 
+const SUPER_ADMIN_EMAIL = 'jaimepinedo95@gmail.com'
+
+// Guards /admin/* — verifies against Supabase auth session email (JWT), never the profile table.
+// Any mismatch → immediate redirect to /dashboard, nothing is rendered.
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth()
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="w-10 h-10 border-3 border-primary-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  if (!user) return <Navigate to="/login" replace />
+
+  // user.email comes from the Supabase auth JWT — it is NOT the user_profiles table value.
+  // It cannot be changed without re-authenticating against Supabase.
+  if (user.email !== SUPER_ADMIN_EMAIL) return <Navigate to="/dashboard" replace />
+
+  return <>{children}</>
+}
+
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading, ipBlocked, profile } = useAuth()
   const location = useLocation()
@@ -157,10 +181,10 @@ export default function App() {
           <Route path="/pacientes" element={<ProtectedRoute><Patients /></ProtectedRoute>} />
           <Route path="/facturacion" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
           <Route path="/configuracion" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-          <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/admin/super" element={<ProtectedRoute><SuperAdmin /></ProtectedRoute>} />
-          <Route path="/superadmin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/admin/clinica" element={<ProtectedRoute><ClinicAdmin /></ProtectedRoute>} />
+          <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+          <Route path="/admin/super" element={<AdminRoute><SuperAdmin /></AdminRoute>} />
+          <Route path="/superadmin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+          <Route path="/admin/clinica" element={<AdminRoute><ClinicAdmin /></AdminRoute>} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

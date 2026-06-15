@@ -33,6 +33,16 @@ INSTRUCCIONES CRÍTICAS:
 ROL DE DICTIA AI:
 Dictia es un escribano clínico, no un médico. Su función es estructurar y redactar lo que el médico dijo en la grabación, con coherencia y en el formato correcto de una nota clínica colombiana. No debe agregar criterio clínico propio, no debe completar información faltante, no debe educar ni advertir. Solo estructura lo que escuchó.
 
+EJEMPLO DE REFERENCIA — HC DE INGRESO (calibración de estilo, no una instrucción):
+Transcripción de ejemplo: "Paciente de 28 años con dolor abdominal desde ayer, empezó arriba del ombligo y bajó al lado derecho. Dolor ocho de diez, peor con el movimiento, dos episodios de náuseas, fiebre en la casa, no come bien desde que empezó. Diagnóstico: apendicitis aguda. Plan: hospitalizar, nada por vía oral, catéter venoso periférico con SSN al 0.9% 1000cc a 42cc por hora. Acetaminofén un gramo IV cada ocho horas. Metoclopramida diez miligramos IV cada ocho horas si náuseas. Paraclínicos: hemograma, PCR, BUN, creatinina, parcial de orina, pruebas de coagulación, ecografía abdominal. Valoración por cirugía general. Control de signos vitales cada cuatro horas, balance hídrico estricto, avisar si fiebre mayor a 38.5 o se deteriora."
+
+Salida esperada — secciones clave:
+enfermedadActual: "Paciente masculino de 28 años quien consulta por cuadro clínico de aproximadamente 18 horas de evolución caracterizado por dolor abdominal de inicio periumbilical que migró posteriormente a fosa ilíaca derecha, de intensidad 8/10 en escala EVA, de carácter continuo, que se exacerba con el movimiento y no cede con analgesia oral. Asocia dos episodios de náuseas sin emesis, hiporexia desde el inicio del cuadro y fiebre no cuantificada en casa."
+examenFisicoEsDefault: true
+analisis: "Paciente masculino de 28 años sin antecedentes de importancia, quien consulta por cuadro de 18 horas de evolución de dolor abdominal que inició periumbilical y migró a fosa ilíaca derecha, con intensidad 8/10 en escala EVA, asociado a náuseas e hiporexia. Por cuadro clínico descrito se considera apendicitis aguda. Se decide hospitalización para valoración por cirugía general y paraclínicos de ingreso."
+diagnostico: "Apendicitis aguda"
+planManejo: "1. Hospitalización\n2. NPO (nada por vía oral)\n3. Catéter venoso periférico. Solución salina normal 0.9% 1000cc a 42cc/hora\n4. Acetaminofén 1g IV cada 8 horas\nMetoclopramida 10mg IV cada 8 horas si náuseas\n5. Hemograma completo, PCR, BUN, creatinina, parcial de orina, pruebas de coagulación. Ecografía abdominal\n6. Valoración por cirugía general\n7. Control de signos vitales cada 4 horas. Balance hídrico estricto. Avisar si fiebre mayor a 38.5°C o deterioro clínico"
+
 REGLAS POR SECCIÓN:
 1. motivoConsulta: Cita textual entre comillas del motivo expresado por el paciente, con corrección ortográfica. Ej: "Me duele mucho la garganta desde hace tres días y tengo fiebre."
 2. enfermedadActual: Texto corrido detallado. Incluye: tiempo de evolución exacto, características del síntoma (inicio, localización, intensidad con escala EVA si se mencionó, irradiación, factores modificadores), síntomas asociados, automedicación si aplica, tratamientos previos.
@@ -233,6 +243,12 @@ CATEGORÍA B — alertas SOLO si aplican:
 - Regla 4: Paraclínicos de alto costo sin indicación explícita en el análisis.
 NO generes alertas genéricas ni especulativas. Solo alertas basadas en lo que dice la nota.
 
+EJEMPLO DE REFERENCIA — NOTA DE EVOLUCIÓN (calibración de estilo):
+Transcripción de ejemplo: "Día tres de hospitalización por neumonía adquirida en la comunidad. Paciente afebril en las últimas 24 horas, hemodinámicamente estable, tolerando vía oral, con requerimiento de dos litros de oxígeno por cánula nasal. Paciente refiere sentirse mejor, menos disnea. Al examen persisten crepitantes en base derecha, mejoría respecto al ingreso. Se continúa manejo antibiótico sin cambios."
+
+Salida esperada — sección clave:
+analisis: "Paciente masculino de 65 años, día 3 de hospitalización por neumonía adquirida en la comunidad, quien presenta evolución favorable con mejoría del síndrome febril y reducción del requerimiento de oxígeno. Al examen físico persisten crepitantes en base derecha con mejoría clínica evidente respecto al ingreso. Paciente tolera adecuadamente la vía oral y refiere sentirse mejor. Se continúa manejo antibiótico con buena tolerancia."
+
 Responde ÚNICAMENTE en formato JSON:
 {
   "fechaHora": "Fecha y hora de la nota o fecha actual si no se menciona",
@@ -339,6 +355,11 @@ Responde ÚNICAMENTE en formato JSON:
   }
 }`
 
+const DICTATION_PREFIX = `MODO DE ENTRADA — DICTADO POR MÉDICO:
+El médico está dictando el resumen completo del caso clínico en voz alta. No hay conversación con paciente. Todo el contenido del audio proviene del médico. Construye la nota clínica estructurada basándote en todo lo que dijo el médico, interpretando su relato como la fuente única de toda la información clínica: datos del paciente, síntomas, hallazgos, diagnóstico y plan.
+
+`
+
 const SPECIALTY_ADDONS: Record<string, string> = {
   'Urgencias': `
 INSTRUCCIONES ADICIONALES — URGENCIAS:
@@ -400,15 +421,30 @@ INSTRUCCIONES ADICIONALES — MEDICINA FAMILIAR:
 // Claude sometimes outputs control chars or markdown fences that break standard parse.
 // Returns null if no valid JSON block can be extracted.
 function tryParseJson(raw: string): Record<string, unknown> | null {
-  const match = raw.match(/{[sS]*}/)
-  if (!match) return null
+  // [\s\S]* matches ANY character including newlines — required for multi-line Claude JSON
+  const match = raw.match(/\{[\s\S]*\}/)
+  if (!match) {
+    console.log('[Dictia] tryParseJson: no JSON block found in response')
+    return null
+  }
   try {
-    return JSON.parse(match[0]) as Record<string, unknown>
-  } catch {
-    const cleaned = match[0].replace(/[ --]/g, '')
+    const result = JSON.parse(match[0]) as Record<string, unknown>
+    console.log('[Dictia] JSON parseado OK, claves:', Object.keys(result).join(', '))
+    return result
+  } catch (e1) {
+    console.log('[Dictia] tryParseJson primer parse falló:', e1 instanceof Error ? e1.message : String(e1))
+    const cleaned = match[0]
+      .replace(/\n/g, ' ')
+      .replace(/\r/g, ' ')
+      .replace(/\t/g, ' ')
+      .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '')
     try {
-      return JSON.parse(cleaned) as Record<string, unknown>
-    } catch {
+      const result = JSON.parse(cleaned) as Record<string, unknown>
+      console.log('[Dictia] JSON parseado OK (cleaned), claves:', Object.keys(result).join(', '))
+      return result
+    } catch (e2) {
+      console.log('[Dictia] tryParseJson falló definitivamente:', e2 instanceof Error ? e2.message : String(e2))
+      console.log('[Dictia] Texto raw (primeros 500):', match[0].slice(0, 500))
       return null
     }
   }
@@ -430,7 +466,7 @@ export async function transcribeAudio(audioBlob: Blob): Promise<string> {
   const ext = audioBlob.type.includes('mp4') ? 'mp4' : 'webm'
   const formData = new FormData()
   formData.append('file', audioBlob, `recording.${ext}`)
-  formData.append('model', 'whisper-large-v3-turbo')
+  formData.append('model', 'whisper-large-v3')
   formData.append('language', 'es')
   formData.append('response_format', 'text')
 
@@ -458,6 +494,7 @@ type GenerateOptions = {
   recentNotes?: SoapNote[]
   previousContext?: string
   hospitalizationDay?: number
+  isDictation?: boolean
 }
 
 async function callClaude(systemPrompt: string, userMessage: string, maxTokens = 4000): Promise<string> {
@@ -487,20 +524,26 @@ async function callClaude(systemPrompt: string, userMessage: string, maxTokens =
   }
 
   const data = await res.json() as { content: Array<{ text: string }> }
-  return data.content[0]?.text ?? ''
+  const rawText = data.content[0]?.text ?? ''
+  console.log('[Dictia] Respuesta raw de Anthropic:', rawText.slice(0, 800))
+  const cleanText = rawText
+    .replace(/```json\s*/g, '')
+    .replace(/```\s*/g, '')
+    .trim()
+  return cleanText
 }
 
 export async function generateSoapNote(transcript: string, options: GenerateOptions = {}): Promise<SoapNote> {
-  const { specialty, noteStyle, isTelemedicine, noteType = 'ingreso', recentNotes, previousContext, hospitalizationDay } = options
+  const { specialty, noteStyle, isTelemedicine, noteType = 'ingreso', recentNotes, previousContext, hospitalizationDay, isDictation } = options
   const isEvolution = noteType === 'evolucion'
   const isTelemed = noteType === 'telemedicina' || isTelemedicine
 
   if (isEvolution) {
-    return generateEvolutionNote(transcript, { specialty, noteStyle, previousContext, hospitalizationDay })
+    return generateEvolutionNote(transcript, { specialty, noteStyle, previousContext, hospitalizationDay, isDictation })
   }
 
   if (noteType === 'traslado') {
-    return generateTransferNote(transcript, { specialty, noteStyle, previousContext })
+    return generateTransferNote(transcript, { specialty, noteStyle, previousContext, isDictation })
   }
 
   // Build system prompt: base + specialty + note style instruction
@@ -510,7 +553,16 @@ export async function generateSoapNote(transcript: string, options: GenerateOpti
     : noteStyle === 'lowercase'
     ? '\n\nIMPORTANTE: Genera toda la respuesta JSON en minúsculas. Sin excepción.'
     : ''
-  const systemPrompt = SYSTEM_PROMPT + specialtyAddon + styleInstruction
+  const systemPrompt = (isDictation ? DICTATION_PREFIX : '') + SYSTEM_PROMPT + specialtyAddon + styleInstruction
+
+  // Sanitize transcript before embedding in the prompt
+  const transcripcionLimpia = transcript
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/\n/g, ' ')
+    .replace(/\r/g, ' ')
+    .trim()
+  console.log('[Dictia] Transcripción recibida:', transcripcionLimpia.slice(0, 300))
 
   // Build user message
   const parts: string[] = []
@@ -530,14 +582,16 @@ export async function generateSoapNote(transcript: string, options: GenerateOpti
     parts.push(`\n--- FIN DE EJEMPLOS DE ESTILO ---`)
   }
 
-  parts.push(`\nTranscripción de la consulta:\n\n${transcript}`)
+  parts.push(`\nTranscripción de la consulta:\n\n${transcripcionLimpia}`)
 
   const userMessage = parts.join('\n')
+  console.log('[Dictia] Prompt enviado a Anthropic:', userMessage.slice(0, 500))
   let raw = await callClaude(systemPrompt, userMessage, 4000)
   let parsed = tryParseJson(raw)
   if (!parsed) {
-    // Retry once — transient failure or malformed JSON due to special chars in transcript
-    raw = await callClaude(systemPrompt, userMessage, 4000)
+    console.log('[Dictia] Primer intento falló, reintentando con hint JSON...')
+    const retryMessage = userMessage + '\n\nResponde ÚNICAMENTE con el JSON válido, sin texto adicional, sin backticks, sin markdown.'
+    raw = await callClaude(systemPrompt, retryMessage, 4000)
     parsed = tryParseJson(raw)
     if (!parsed) throw new Error('No se pudo procesar la consulta. Intenta grabar de nuevo.')
   }
@@ -604,9 +658,9 @@ export async function generateSoapNote(transcript: string, options: GenerateOpti
 
 async function generateEvolutionNote(
   transcript: string,
-  options: { specialty?: string; noteStyle?: string; previousContext?: string; hospitalizationDay?: number }
+  options: { specialty?: string; noteStyle?: string; previousContext?: string; hospitalizationDay?: number; isDictation?: boolean }
 ): Promise<SoapNote> {
-  const { noteStyle, previousContext, hospitalizationDay } = options
+  const { noteStyle, previousContext, hospitalizationDay, isDictation } = options
 
   const styleInstruction = noteStyle === 'uppercase'
     ? '\n\nIMPORTANTE: Genera toda la respuesta JSON en MAYÚSCULAS. Sin excepción.'
@@ -614,7 +668,15 @@ async function generateEvolutionNote(
     ? '\n\nIMPORTANTE: Genera toda la respuesta JSON en minúsculas. Sin excepción.'
     : ''
 
-  const systemPrompt = EVOLUTION_SYSTEM_PROMPT + styleInstruction
+  const systemPrompt = (isDictation ? DICTATION_PREFIX : '') + EVOLUTION_SYSTEM_PROMPT + styleInstruction
+
+  const transcripcionLimpia = transcript
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/\n/g, ' ')
+    .replace(/\r/g, ' ')
+    .trim()
+  console.log('[Dictia] Transcripción recibida (evolución):', transcripcionLimpia.slice(0, 300))
 
   const parts: string[] = []
 
@@ -626,13 +688,16 @@ async function generateEvolutionNote(
     parts.push(`\nCONTEXTO BASE (notas previas del paciente — puede contener una o varias notas):\n${previousContext}\n--- FIN CONTEXTO BASE ---`)
   }
 
-  parts.push(`\nGRABACIÓN DEL DÍA (transcripción del médico hoy):\n\n${transcript}`)
+  parts.push(`\nGRABACIÓN DEL DÍA (transcripción del médico hoy):\n\n${transcripcionLimpia}`)
 
   const userMessage = parts.join('\n')
+  console.log('[Dictia] Prompt enviado a Anthropic (evolución):', userMessage.slice(0, 500))
   let raw = await callClaude(systemPrompt, userMessage, 4500)
   let parsed = tryParseJson(raw)
   if (!parsed) {
-    raw = await callClaude(systemPrompt, userMessage, 4500)
+    console.log('[Dictia] Evolución: primer intento falló, reintentando con hint JSON...')
+    const retryMessage = userMessage + '\n\nResponde ÚNICAMENTE con el JSON válido, sin texto adicional, sin backticks, sin markdown.'
+    raw = await callClaude(systemPrompt, retryMessage, 4500)
     parsed = tryParseJson(raw)
     if (!parsed) throw new Error('No se pudo procesar la nota de evolución. Intenta de nuevo.')
   }
@@ -687,9 +752,9 @@ async function generateEvolutionNote(
 
 async function generateTransferNote(
   transcript: string,
-  options: { specialty?: string; noteStyle?: string; previousContext?: string }
+  options: { specialty?: string; noteStyle?: string; previousContext?: string; isDictation?: boolean }
 ): Promise<SoapNote> {
-  const { noteStyle, previousContext } = options
+  const { noteStyle, previousContext, isDictation } = options
 
   const styleInstruction = noteStyle === 'uppercase'
     ? '\n\nIMPORTANTE: Genera toda la respuesta JSON en MAYÚSCULAS. Sin excepción.'
@@ -697,7 +762,15 @@ async function generateTransferNote(
     ? '\n\nIMPORTANTE: Genera toda la respuesta JSON en minúsculas. Sin excepción.'
     : ''
 
-  const systemPrompt = TRANSFER_SYSTEM_PROMPT + styleInstruction
+  const systemPrompt = (isDictation ? DICTATION_PREFIX : '') + TRANSFER_SYSTEM_PROMPT + styleInstruction
+
+  const transcripcionLimpia = transcript
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/\n/g, ' ')
+    .replace(/\r/g, ' ')
+    .trim()
+  console.log('[Dictia] Transcripción recibida (traslado):', transcripcionLimpia.slice(0, 300))
 
   const parts: string[] = []
 
@@ -705,13 +778,16 @@ async function generateTransferNote(
     parts.push(`CONTEXTO BASE (notas del servicio de origen):\n${previousContext}\n--- FIN CONTEXTO BASE ---`)
   }
 
-  parts.push(`\nGRABACIÓN AL INGRESO (transcripción del médico al recibir al paciente):\n\n${transcript}`)
+  parts.push(`\nGRABACIÓN AL INGRESO (transcripción del médico al recibir al paciente):\n\n${transcripcionLimpia}`)
 
   const userMessage = parts.join('\n')
+  console.log('[Dictia] Prompt enviado a Anthropic (traslado):', userMessage.slice(0, 500))
   let raw = await callClaude(systemPrompt, userMessage, 4500)
   let parsed = tryParseJson(raw)
   if (!parsed) {
-    raw = await callClaude(systemPrompt, userMessage, 4500)
+    console.log('[Dictia] Traslado: primer intento falló, reintentando con hint JSON...')
+    const retryMessage = userMessage + '\n\nResponde ÚNICAMENTE con el JSON válido, sin texto adicional, sin backticks, sin markdown.'
+    raw = await callClaude(systemPrompt, retryMessage, 4500)
     parsed = tryParseJson(raw)
     if (!parsed) throw new Error('No se pudo procesar la nota de traslado. Intenta de nuevo.')
   }

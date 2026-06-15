@@ -288,6 +288,89 @@ export async function blockUser(userId: string): Promise<void> {
   if (error) console.error('[Dictia] blockUser:', error.message)
 }
 
+export async function reactivateUser(userId: string): Promise<void> {
+  if (!isSupabaseConfigured) return
+  const { error } = await supabase.from('user_profiles').update({
+    subscription_status: 'active',
+    consultations_limit: 250,
+  }).eq('id', userId)
+  if (error) console.error('[Dictia] reactivateUser:', error.message)
+}
+
+export async function deleteUser(userId: string): Promise<void> {
+  if (!isSupabaseConfigured) return
+  const { error } = await supabase.from('user_profiles').delete().eq('id', userId)
+  if (error) console.error('[Dictia] deleteUser:', error.message)
+}
+
+export type NoteTypeCount = { type: string; count: number }
+export type SpecialtyCount = { specialty: string; count: number }
+export type DayCount = { day: string; count: number }
+
+const MOCK_NOTE_TYPES: NoteTypeCount[] = [
+  { type: 'ingreso', count: 18 },
+  { type: 'evolucion', count: 28 },
+  { type: 'telemedicina', count: 9 },
+  { type: 'traslado', count: 6 },
+]
+
+const MOCK_SPECIALTIES: SpecialtyCount[] = [
+  { specialty: 'Medicina General', count: 22 },
+  { specialty: 'Urgencias', count: 17 },
+  { specialty: 'Medicina Interna', count: 11 },
+  { specialty: 'Pediatría', count: 8 },
+  { specialty: 'Otra especialidad', count: 3 },
+]
+
+export async function fetchNotesByType(): Promise<NoteTypeCount[]> {
+  if (!isSupabaseConfigured) return MOCK_NOTE_TYPES
+  const { data, error } = await supabase.from('consultations').select('note_type')
+  if (error) { console.error('[Dictia] fetchNotesByType:', error.message); return MOCK_NOTE_TYPES }
+  const counts: Record<string, number> = {}
+  ;(data as { note_type: string }[]).forEach(r => {
+    const t = r.note_type || 'ingreso'
+    counts[t] = (counts[t] ?? 0) + 1
+  })
+  return Object.entries(counts).map(([type, count]) => ({ type, count }))
+    .sort((a, b) => b.count - a.count)
+}
+
+export async function fetchNotesBySpecialty(): Promise<SpecialtyCount[]> {
+  if (!isSupabaseConfigured) return MOCK_SPECIALTIES
+  const { data, error } = await supabase.from('consultations').select('specialty')
+  if (error) { console.error('[Dictia] fetchNotesBySpecialty:', error.message); return MOCK_SPECIALTIES }
+  const counts: Record<string, number> = {}
+  ;(data as { specialty: string | null }[]).forEach(r => {
+    const s = r.specialty || 'Sin especialidad'
+    counts[s] = (counts[s] ?? 0) + 1
+  })
+  return Object.entries(counts).map(([specialty, count]) => ({ specialty, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 8)
+}
+
+export async function fetchNotesByDay(): Promise<DayCount[]> {
+  const days: DayCount[] = Array.from({ length: 30 }, (_, i) => {
+    const d = new Date(Date.now() - (29 - i) * 86400000)
+    return { day: d.toISOString().split('T')[0], count: 0 }
+  })
+  if (!isSupabaseConfigured) {
+    return days.map(d => ({ ...d, count: Math.floor(Math.random() * 5) }))
+  }
+  const since = days[0].day + 'T00:00:00'
+  const { data, error } = await supabase
+    .from('consultations')
+    .select('created_at')
+    .gte('created_at', since)
+  if (error) { console.error('[Dictia] fetchNotesByDay:', error.message); return days }
+  ;(data as { created_at: string }[]).forEach(r => {
+    const day = r.created_at.split('T')[0]
+    const found = days.find(d => d.day === day)
+    if (found) found.count++
+  })
+  return days
+}
+
 export function isIpAuthorized(currentIp: string, authorizedIps: string[]): boolean {
   if (authorizedIps.length === 0) return true // No restriction
   return authorizedIps.some(cidr => {
