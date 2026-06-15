@@ -44,8 +44,8 @@ function IpBlockScreen() {
 }
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading, ipBlocked } = useAuth()
-  useLocation() // keep import alive — will be needed when guard is restored
+  const { user, loading, ipBlocked, profile } = useAuth()
+  useLocation() // referenced in the commented guard below — keep this call
 
   if (loading) {
     return (
@@ -61,9 +61,34 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (!user) return <Navigate to="/login" replace />
   if (ipBlocked) return <IpBlockScreen />
 
-  // TEMPORAL: cualquier usuario autenticado accede directo — sin verificar subscription_status
-  // TODO: restaurar el guard de onboarding cuando Wompi esté configurado
+  // Super admin: bypass permanente — nunca bloquear por suscripción, ni ahora ni cuando Wompi esté activo
+  if (profile?.role === 'super_admin') return <>{children}</>
+
+  // TEMPORAL: acceso libre para cualquier usuario autenticado mientras se configura Wompi
+  // TODO: Reactivar cuando Wompi esté configurado
   return <>{children}</>
+
+  /* ── Guard de suscripción — descomentar cuando Wompi esté activo ──────────────
+  const status = profile?.subscription_status
+  // const location = useLocation()   ← mover fuera del comentario al reactivar
+  const path = location.pathname      // location viene del useLocation() de arriba
+
+  // Onboarding: solo si está pendiente
+  if (path.startsWith('/onboarding')) {
+    if (status === 'trial' || status === 'active') return <Navigate to="/dashboard" replace />
+    return <>{children}</>
+  }
+
+  // Pantallas de estado de suscripción: siempre permitir
+  if (path.startsWith('/subscription')) return <>{children}</>
+
+  // App principal: requiere onboarding completo
+  if (!status || status === 'pending') return <Navigate to="/onboarding/plan" replace />
+  if (status === 'cancelled') return <Navigate to="/subscription/cancelado" replace />
+  if (status === 'expired') return <Navigate to="/subscription/vencido" replace />
+
+  return <>{children}</>
+  ─────────────────────────────────────────────────────────────────────────────── */
 }
 
 function PublicRoute({ children }: { children: React.ReactNode }) {

@@ -181,6 +181,91 @@ export async function deductClinicCredit(clinicaId: string, amount: number, desc
   return true
 }
 
+// ─── User management (Super Admin) ────────────────────────────────────────────
+// Requires these RLS policies in Supabase SQL editor:
+//   create policy "Super admin reads all profiles" on public.user_profiles
+//     for select using (auth.jwt() ->> 'email' = 'jaimepinedo95@gmail.com' OR auth.uid() = id);
+//   create policy "Super admin updates all profiles" on public.user_profiles
+//     for update using (auth.jwt() ->> 'email' = 'jaimepinedo95@gmail.com' OR auth.uid() = id);
+
+export type UserSummary = {
+  id: string
+  full_name: string
+  email: string
+  specialty: string
+  plan: string
+  plan_seleccionado: string | null
+  subscription_status: string | null
+  consultations_used: number
+  consultations_limit: number
+  trial_start_at: string | null
+  trial_end_at: string | null
+  created_at: string
+}
+
+const PLAN_LIMITS: Record<string, number> = {
+  basic: 130, standard: 250, advanced: 440, pro: 800, free_trial: 999999,
+}
+
+export const MOCK_USERS: UserSummary[] = [
+  {
+    id: 'mock-u-1', full_name: 'Dr. Carlos Mendoza', email: 'carlos.mendoza@example.com',
+    specialty: 'Medicina General', plan: 'free_trial', plan_seleccionado: 'standard',
+    subscription_status: 'trial', consultations_used: 8, consultations_limit: 999999,
+    trial_start_at: new Date(Date.now() - 2 * 86400000).toISOString(),
+    trial_end_at: new Date(Date.now() + 86400000).toISOString(),
+    created_at: new Date(Date.now() - 2 * 86400000).toISOString(),
+  },
+  {
+    id: 'mock-u-2', full_name: 'Dra. Patricia López', email: 'patricia.lopez@example.com',
+    specialty: 'Pediatría', plan: 'free_trial', plan_seleccionado: 'basic',
+    subscription_status: 'pending', consultations_used: 0, consultations_limit: 999999,
+    trial_start_at: null, trial_end_at: null,
+    created_at: new Date(Date.now() - 86400000).toISOString(),
+  },
+  {
+    id: 'mock-u-3', full_name: 'Dr. Roberto Silva', email: 'roberto.silva@example.com',
+    specialty: 'Urgencias y Emergencias', plan: 'standard', plan_seleccionado: 'standard',
+    subscription_status: 'active', consultations_used: 47, consultations_limit: 250,
+    trial_start_at: new Date(Date.now() - 10 * 86400000).toISOString(),
+    trial_end_at: null,
+    created_at: new Date(Date.now() - 30 * 86400000).toISOString(),
+  },
+]
+
+export async function fetchAllUsers(): Promise<UserSummary[]> {
+  if (!isSupabaseConfigured) return MOCK_USERS
+  const { data, error } = await supabase
+    .from('user_profiles')
+    .select('id, full_name, email, specialty, plan, plan_seleccionado, subscription_status, consultations_used, consultations_limit, trial_start_at, trial_end_at, created_at')
+    .order('created_at', { ascending: false })
+  if (error) {
+    console.error('[Dictia] fetchAllUsers:', error.message)
+    return MOCK_USERS
+  }
+  return (data as UserSummary[]) ?? []
+}
+
+export async function updateUserPlan(userId: string, plan: string): Promise<void> {
+  if (!isSupabaseConfigured) return
+  const { error } = await supabase.from('user_profiles').update({
+    plan_seleccionado: plan,
+    plan,
+    subscription_status: 'active',
+    consultations_limit: PLAN_LIMITS[plan] ?? 250,
+  }).eq('id', userId)
+  if (error) console.error('[Dictia] updateUserPlan:', error.message)
+}
+
+export async function grantFreeAccess(userId: string): Promise<void> {
+  if (!isSupabaseConfigured) return
+  const { error } = await supabase.from('user_profiles').update({
+    subscription_status: 'active',
+    consultations_limit: 999999,
+  }).eq('id', userId)
+  if (error) console.error('[Dictia] grantFreeAccess:', error.message)
+}
+
 export function isIpAuthorized(currentIp: string, authorizedIps: string[]): boolean {
   if (authorizedIps.length === 0) return true // No restriction
   return authorizedIps.some(cidr => {
