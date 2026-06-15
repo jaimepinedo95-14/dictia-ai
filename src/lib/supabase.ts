@@ -17,7 +17,15 @@ export const isSupabaseConfigured = Boolean(
 
 export const supabase = createClient(
   isSupabaseConfigured ? supabaseUrl : 'https://placeholder.supabase.co',
-  isSupabaseConfigured ? supabaseAnonKey : 'placeholder'
+  isSupabaseConfigured ? supabaseAnonKey : 'placeholder',
+  {
+    global: {
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+    },
+  }
 )
 
 // ─── Database types ────────────────────────────────────────────────────────────
