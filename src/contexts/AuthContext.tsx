@@ -225,6 +225,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   function canRecord(): CanRecordResult {
     if (!profile) return { allowed: false, reason: 'No hay sesión activa' }
 
+    // Super admin: acceso permanente sin restricciones de suscripción
+    if (profile.role === 'super_admin') return { allowed: true }
+
+    // Dev mode (Wompi no configurado): acceso libre para todos los usuarios autenticados
+    // TODO: Eliminar este bloque cuando Wompi esté configurado en producción
+    if (!import.meta.env.VITE_WOMPI_PUBLIC_KEY) return { allowed: true }
+
     const isTrial = profile.subscription_status === 'trial' || profile.plan === 'free_trial'
 
     if (isTrial) {
