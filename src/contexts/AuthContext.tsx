@@ -187,7 +187,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: null }
     }
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    if (!error && data.user) {
+      // Eagerly set state so ProtectedRoute sees the user before onAuthStateChange fires.
+      // Without this, navigate('/dashboard') races onAuthStateChange on slow mobile connections,
+      // causing ProtectedRoute to redirect back to /login and leave a blank page.
+      setUser(data.user)
+      setSession(data.session)
+      await fetchProfile(data.user.id)
+    }
     return { error }
   }
 

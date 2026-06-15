@@ -2,7 +2,7 @@
   "name": "Dictia AI",
   "short_name": "Dictia",
   "description": "Tu asistente de documentación clínica para América Latina",
-  "start_url": "/",
+  "start_url": "/dashboard",
   "display": "standalone",
   "orientation": "portrait",
   "theme_color": "#1B4FD8",

@@ -266,6 +266,28 @@ export async function grantFreeAccess(userId: string): Promise<void> {
   if (error) console.error('[Dictia] grantFreeAccess:', error.message)
 }
 
+export async function fetchNotesStats(): Promise<{ today: number; month: number; total: number }> {
+  if (!isSupabaseConfigured) return { today: 3, month: 47, total: 312 }
+  const now = new Date()
+  const todayStr = now.toISOString().split('T')[0]
+  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+  const [t, m, all] = await Promise.all([
+    supabase.from('consultations').select('*', { count: 'exact', head: true }).gte('created_at', `${todayStr}T00:00:00`),
+    supabase.from('consultations').select('*', { count: 'exact', head: true }).gte('created_at', firstOfMonth),
+    supabase.from('consultations').select('*', { count: 'exact', head: true }),
+  ])
+  return { today: t.count ?? 0, month: m.count ?? 0, total: all.count ?? 0 }
+}
+
+export async function blockUser(userId: string): Promise<void> {
+  if (!isSupabaseConfigured) return
+  const { error } = await supabase.from('user_profiles').update({
+    subscription_status: 'cancelled',
+    consultations_limit: 0,
+  }).eq('id', userId)
+  if (error) console.error('[Dictia] blockUser:', error.message)
+}
+
 export function isIpAuthorized(currentIp: string, authorizedIps: string[]): boolean {
   if (authorizedIps.length === 0) return true // No restriction
   return authorizedIps.some(cidr => {

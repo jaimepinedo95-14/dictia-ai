@@ -25,6 +25,7 @@ import Patients from './pages/Patients'
 import Billing from './pages/Billing'
 import Settings from './pages/Settings'
 import SuperAdmin from './pages/SuperAdmin'
+import AdminDashboard from './pages/AdminDashboard'
 import ClinicAdmin from './pages/ClinicAdmin'
 import PrivacyPage from './pages/PrivacyPage'
 import TermsPage from './pages/TermsPage'
@@ -58,7 +59,7 @@ function IpBlockScreen() {
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading, ipBlocked, profile } = useAuth()
-  useLocation() // referenced in the commented guard below — keep this call
+  const location = useLocation()
 
   if (loading) {
     return (
@@ -74,8 +75,14 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (!user) return <Navigate to="/login" replace />
   if (ipBlocked) return <IpBlockScreen />
 
-  // Super admin: bypass permanente — nunca bloquear por suscripción, ni ahora ni cuando Wompi esté activo
-  if (profile?.role === 'super_admin') return <>{children}</>
+  // Super admin: siempre redirigir a /admin salvo que ya esté en una ruta admin o en la app de médico explícitamente
+  if (profile?.role === 'super_admin') {
+    const adminRoutes = ['/admin', '/configuracion', '/dashboard', '/nueva-consulta', '/historial', '/pacientes', '/facturacion']
+    const isAdminArea = location.pathname.startsWith('/admin')
+    const isDoctorApp = adminRoutes.some(r => r !== '/admin' && location.pathname.startsWith(r))
+    if (!isAdminArea && !isDoctorApp) return <Navigate to="/admin" replace />
+    return <>{children}</>
+  }
 
   // TEMPORAL: acceso libre para cualquier usuario autenticado mientras se configura Wompi
   // TODO: Reactivar cuando Wompi esté configurado
@@ -105,10 +112,19 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth()
+  const { user, loading, profile } = useAuth()
 
-  if (loading) return null
-  if (user) return <Navigate to="/dashboard" replace />
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="w-8 h-8 border-2 border-primary-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+  if (user) {
+    const dest = profile?.role === 'super_admin' ? '/admin' : '/dashboard'
+    return <Navigate to={dest} replace />
+  }
   return <>{children}</>
 }
 
@@ -141,8 +157,9 @@ export default function App() {
           <Route path="/pacientes" element={<ProtectedRoute><Patients /></ProtectedRoute>} />
           <Route path="/facturacion" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
           <Route path="/configuracion" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+          <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
           <Route path="/admin/super" element={<ProtectedRoute><SuperAdmin /></ProtectedRoute>} />
-          <Route path="/superadmin" element={<ProtectedRoute><SuperAdmin /></ProtectedRoute>} />
+          <Route path="/superadmin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
           <Route path="/admin/clinica" element={<ProtectedRoute><ClinicAdmin /></ProtectedRoute>} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
