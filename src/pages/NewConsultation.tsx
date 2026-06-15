@@ -99,8 +99,8 @@ function SoapCard({
     <div className={`bg-white rounded-2xl border-2 p-5 transition-all duration-200 shadow-sm ${
       isEmpty
         ? 'border-amber-200 bg-amber-50'
-        : physicalExamIsDefault || isTelemed
-        ? 'border-amber-300'
+        : isTelemed
+        ? 'border-slate-100 hover:border-slate-200 hover:shadow-md'
         : 'border-slate-100 hover:border-slate-200 hover:shadow-md'
     }`}>
       <div className="flex items-center justify-between gap-3 mb-3">
@@ -129,14 +129,6 @@ function SoapCard({
         </button>
       </div>
 
-      {physicalExamIsDefault && !isTelemed && !isEditing && (
-        <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 mb-3">
-          <span className="text-sm flex-shrink-0">⚠️</span>
-          <p className="text-xs text-amber-700 leading-relaxed">
-            <span className="font-bold">Examen físico normal sugerido por defecto</span> — el médico debe revisar y ajustar según hallazgos reales
-          </p>
-        </div>
-      )}
       {isTelemed && !isEditing && (
         <div className="flex items-start gap-2 bg-sky-50 border border-sky-200 rounded-xl px-3 py-2.5 mb-3">
           <Wifi size={14} className="text-sky-500 flex-shrink-0 mt-0.5" />

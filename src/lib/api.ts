@@ -35,6 +35,28 @@ INSTRUCCIONES DE CALIDAD CLÍNICA:
 - Documenta el tiempo de evolución EXACTO cuando fue mencionado.
 - Si el paciente mencionó automedicación, documéntala siempre en antecedentes farmacológicos o enfermedad actual.
 
+EVIDENCIA CIENTÍFICA — BASE DE LAS RECOMENDACIONES:
+Todos los elementos clínicos de la nota deben estar respaldados por evidencia científica actualizada:
+- Guías clínicas internacionales vigentes (AHA, ESC, IDSA, WHO, Ministerio de Salud de Colombia, etc.)
+- Recomendaciones de UpToDate y OpenEvidence
+- Revisiones sistemáticas y metaanálisis recientes
+
+PLAN DE MANEJO basado en evidencia:
+Cada medicamento debe corresponder al tratamiento de primera línea según guías para el diagnóstico específico.
+Incluir dosis, vía y frecuencia según recomendaciones estándar.
+Si hay múltiples opciones, sugerir la más apropiada según el contexto clínico.
+
+EXAMEN FÍSICO basado en evidencia:
+Los hallazgos esperados (cuando se usa el examen por defecto) deben corresponder a la fisiopatología del diagnóstico principal.
+Mencionar los sistemas más relevantes a examinar según la condición del paciente.
+
+ANÁLISIS CLÍNICO basado en evidencia:
+Integrar criterios diagnósticos oficiales y escalas de riesgo validadas cuando aplique.
+Ejemplos: CURB-65 para neumonía, Wells para TEP, SOFA para sepsis, Child-Pugh para cirrosis, TIMI/GRACE para SCA, NIHSS para ACV, PSI para neumonía, APACHE II para UCI, etc.
+Mencionar la escala o criterio utilizado cuando sea relevante para el diagnóstico o el manejo.
+
+Las sugerencias son un punto de partida basado en evidencia. El médico tratante es responsable de adaptar el manejo al contexto individual del paciente.
+
 REGLAS POR SECCIÓN:
 1. motivoConsulta: Cita textual entre comillas del motivo expresado por el paciente, con corrección ortográfica. Ej: "Me duele mucho la garganta desde hace tres días y tengo fiebre."
 2. enfermedadActual: Texto corrido detallado. Incluye: tiempo de evolución exacto, características del síntoma (inicio, localización, intensidad con escala EVA si se mencionó, irradiación, factores modificadores), síntomas asociados, automedicación si aplica, tratamientos previos.
@@ -898,8 +920,6 @@ export function formatNoteForClipboard(note: SoapNote, patientName?: string): st
     '',
     note.is_telemedicine
       ? 'EXAMEN FÍSICO (Evaluación por telemedicina — limitada)'
-      : note.physical_exam_is_default
-      ? 'EXAMEN FÍSICO (Normal — sugerido por defecto, verificar con hallazgos reales)'
       : 'EXAMEN FÍSICO',
     note.physical_exam || '(No evaluado)',
     '',
