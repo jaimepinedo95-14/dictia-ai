@@ -223,6 +223,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   function canRecord(): CanRecordResult {
+    // Usuario autenticado sin perfil cargado (fetch aún pendiente o falló) → permitir
+    // TODO: Reactivar verificación estricta cuando el perfil sea confiable
+    if (!profile && user) return { allowed: true }
     if (!profile) return { allowed: false, reason: 'No hay sesión activa' }
 
     // Super admin: acceso permanente sin restricciones de suscripción
