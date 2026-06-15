@@ -1,3 +1,16 @@
+// Diagnostic: log which API keys are baked in at build time — remove after confirming
+console.log('[Dictia] env keys at runtime:', {
+  ANTHROPIC: import.meta.env.VITE_ANTHROPIC_API_KEY
+    ? `✓ set (${(import.meta.env.VITE_ANTHROPIC_API_KEY as string).slice(0, 10)}…)`
+    : '✗ NOT SET',
+  GROQ: import.meta.env.VITE_GROQ_API_KEY
+    ? `✓ set (${(import.meta.env.VITE_GROQ_API_KEY as string).slice(0, 10)}…)`
+    : '✗ NOT SET',
+  SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL ? '✓ set' : '✗ NOT SET',
+  WOMPI: import.meta.env.VITE_WOMPI_PUBLIC_KEY ? '✓ set' : '✗ NOT SET (dev mode)',
+  MODE: import.meta.env.MODE,
+})
+
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import PwaInstallBanner from './components/PwaInstallBanner'
