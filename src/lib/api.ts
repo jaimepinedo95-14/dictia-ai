@@ -458,19 +458,15 @@ export function isAnthropicConfigured(): boolean {
   return Boolean(ANTHROPIC_API_KEY && !ANTHROPIC_API_KEY.includes('aqui_va'))
 }
 
-export async function transcribeAudio(audioBlob: Blob): Promise<string> {
-  if (!isGroqConfigured()) {
-    throw new Error('VITE_GROQ_API_KEY no configurada. Agrega tu API key de Groq en el archivo .env')
-  }
-
+async function groqTranscribeAttempt(audioBlob: Blob, model: string, withLanguage: boolean): Promise<string> {
   const ext = audioBlob.type.includes('mp4') ? 'mp4' : 'webm'
-  console.log('[Dictia] transcribeAudio — mimeType:', audioBlob.type, '| size:', audioBlob.size, 'bytes | ext:', ext)
-
   const formData = new FormData()
-  formData.append('file', audioBlob, `recording.${ext}`)
-  formData.append('model', 'whisper-large-v3')
-  formData.append('language', 'es')
+  formData.append('file', audioBlob, `audio.${ext}`)
+  formData.append('model', model)
+  if (withLanguage) formData.append('language', 'es')
   formData.append('response_format', 'text')
+
+  console.log(`[Dictia] Groq intento — model: ${model}, language: ${withLanguage}, ext: ${ext}, size: ${audioBlob.size}`)
 
   const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
     method: 'POST',
@@ -480,12 +476,41 @@ export async function transcribeAudio(audioBlob: Blob): Promise<string> {
 
   if (!res.ok) {
     const body = await res.text()
-    throw new Error(`Groq error ${res.status}: ${body}`)
+    console.log(`[Dictia] Groq ${res.status} con model=${model} language=${withLanguage}:`, body)
+    throw new Error(`Groq ${res.status}: ${body}`)
   }
 
   const text = await res.text()
-  if (!text.trim()) throw new Error('La transcripción está vacía. Verifica que el audio tenga voz clara.')
+  console.log(`[Dictia] Groq OK con model=${model} — texto (primeros 100):`, text.slice(0, 100))
   return text.trim()
+}
+
+export async function transcribeAudio(audioBlob: Blob): Promise<string> {
+  if (!isGroqConfigured()) {
+    throw new Error('VITE_GROQ_API_KEY no configurada. Agrega tu API key de Groq en el archivo .env')
+  }
+
+  console.log('[Dictia] transcribeAudio — mimeType:', audioBlob.type, '| size:', audioBlob.size, 'bytes')
+
+  // Fallback chain: best model → turbo → sin language param
+  const attempts: Array<{ model: string; withLanguage: boolean }> = [
+    { model: 'whisper-large-v3', withLanguage: true },
+    { model: 'whisper-large-v3-turbo', withLanguage: true },
+    { model: 'whisper-large-v3-turbo', withLanguage: false },
+  ]
+
+  let lastError = ''
+  for (const attempt of attempts) {
+    try {
+      const text = await groqTranscribeAttempt(audioBlob, attempt.model, attempt.withLanguage)
+      if (!text) throw new Error('Transcripción vacía')
+      return text
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : String(err)
+    }
+  }
+
+  throw new Error(`No se pudo transcribir el audio. Último error: ${lastError}`)
 }
 
 type GenerateOptions = {

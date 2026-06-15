@@ -986,6 +986,9 @@ export default function NewConsultation() {
       return
     }
     const audioBlob = new Blob(chunks, { type: mimeTypeRef.current || 'audio/webm' })
+    console.log('[Dictia] chunks acumulados:', chunks.length)
+    console.log('[Dictia] blob size:', audioBlob.size)
+    console.log('[Dictia] blob type:', audioBlob.type)
     if (audioBlob.size < 1000) {
       setEmptyTranscript(true)
       setError('No se detectó audio. Verifica que el micrófono esté funcionando y vuelve a intentarlo.')
