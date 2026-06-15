@@ -4,8 +4,10 @@ import { createClient } from '@supabase/supabase-js'
 // Set these in .env.local:
 //   VITE_SUPABASE_URL=https://xxxx.supabase.co
 //   VITE_SUPABASE_ANON_KEY=your-anon-key
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string
+// Fallback hardcoded for production while env vars are being debugged — safe because
+// Supabase anon key is intentionally public; security is enforced by RLS policies.
+const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string) || 'https://rggncanavwbbbjrjpins.supabase.co'
+const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string) || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJnZ25jYW5hdndiYmJqcmpwaW5zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk2NzQwNjksImV4cCI6MjA2NTI1MDA2OX0.Am4eLt2U58wIoSc0_qnR2hmnFV0jgah8oqbJ_bM_2vY'
 
 export const isSupabaseConfigured = Boolean(
   supabaseUrl &&
