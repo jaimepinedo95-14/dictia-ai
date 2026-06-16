@@ -178,7 +178,7 @@ export default function SuperAdmin() {
               ) : users.length === 0 ? (
                 <div className="p-10 text-center text-slate-400">
                   <p className="font-medium">Sin usuarios visibles</p>
-                  <p className="text-xs mt-1">Verifica las políticas RLS en Supabase para este email.</p>
+                  <p className="text-xs mt-1">No hay usuarios registrados aún.</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
