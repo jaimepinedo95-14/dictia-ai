@@ -171,7 +171,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <p className="text-xs text-slate-500 truncate">{profile?.specialty}</p>
             {(profile?.consultations_used ?? 0) > 0 && (
               <p className="text-xs text-emerald-600 font-semibold mt-0.5">
-                {profile!.consultations_used} HCs · {((profile!.consultations_used * 12) / 60).toFixed(1)}h ahorradas
+                {profile!.consultations_used} HCs · {Math.floor(profile!.consultations_used * 8 / 60)}h {profile!.consultations_used * 8 % 60 > 0 ? `${profile!.consultations_used * 8 % 60}min` : ''} ahorradas en documentación
               </p>
             )}
           </div>

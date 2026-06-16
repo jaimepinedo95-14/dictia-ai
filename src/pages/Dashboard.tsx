@@ -76,10 +76,17 @@ export default function Dashboard() {
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Buenos días' : hour < 19 ? 'Buenas tardes' : 'Buenas noches'
 
-  const timeSavedMin = monthCount * 7.5
+  const MINS_PER_NOTE = 8
+  const timeSavedMin = monthCount * MINS_PER_NOTE
   const timeSavedDisplay = timeSavedMin >= 60
-    ? `${(timeSavedMin / 60).toFixed(1)} h`
-    : `${Math.round(timeSavedMin)} min`
+    ? `${Math.floor(timeSavedMin / 60)}h ${timeSavedMin % 60 > 0 ? `${timeSavedMin % 60}min` : ''}`.trim()
+    : `${timeSavedMin} min`
+
+  const totalHistoricMin  = (profile?.consultations_used ?? 0) * MINS_PER_NOTE
+  const totalHistoricDisplay = totalHistoricMin >= 60
+    ? `${Math.floor(totalHistoricMin / 60)}h ${totalHistoricMin % 60 > 0 ? `${totalHistoricMin % 60}min` : ''}`.trim()
+    : `${totalHistoricMin} min`
+  const daysEquivalent = (timeSavedMin / 480).toFixed(1)
 
   const planLabel = PLAN_LABELS[profile?.plan ?? ''] ?? (profile?.plan ?? '—')
 
@@ -187,7 +194,7 @@ export default function Dashboard() {
             ) : (
               <>
                 <div className="text-3xl font-black text-slate-900">{timeSavedDisplay}</div>
-                <p className="text-xs text-slate-400 mt-1">~7.5 min por consulta este mes</p>
+                <p className="text-xs text-slate-400 mt-1">~8 min por consulta que ya no escribes</p>
               </>
             )}
           </div>
@@ -212,6 +219,30 @@ export default function Dashboard() {
             )}
           </div>
         </div>
+
+        {/* ── Mi impacto ── */}
+        {!loading && monthCount > 0 && (
+          <div className="bg-white rounded-2xl border border-slate-100 p-5">
+            <h2 className="font-bold text-slate-900 mb-4">Mi impacto este mes</h2>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-emerald-50 rounded-xl p-4">
+                <p className="text-2xl font-black text-emerald-700">{timeSavedDisplay}</p>
+                <p className="text-xs text-emerald-600 font-medium mt-1">ahorrados en documentación</p>
+                <p className="text-xs text-emerald-500 mt-0.5">~8 min × {monthCount} nota{monthCount !== 1 ? 's' : ''} aprobada{monthCount !== 1 ? 's' : ''}</p>
+              </div>
+              <div className="bg-slate-50 rounded-xl p-4">
+                <p className="text-2xl font-black text-slate-700">{daysEquivalent}</p>
+                <p className="text-xs text-slate-600 font-medium mt-1">días laborales equivalentes</p>
+                <p className="text-xs text-slate-400 mt-0.5">calculado sobre jornadas de 8 horas</p>
+              </div>
+            </div>
+            {(profile?.consultations_used ?? 0) > monthCount && (
+              <p className="text-xs text-slate-400 mt-3 pt-3 border-t border-slate-100">
+                Tiempo total ahorrado desde que usas Dictia: <span className="font-semibold text-slate-600">{totalHistoricDisplay}</span>
+              </p>
+            )}
+          </div>
+        )}
 
         {/* ── Recent consultations ── */}
         <div>
