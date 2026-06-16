@@ -628,7 +628,6 @@ const NOTE_TYPE_OPTIONS: NoteTypeOption[] = [
 ]
 
 // ─── Recording constants ───────────────────────────────────────────────────────
-const CHUNK_INTERVAL_MS = 30_000
 const SILENCE_THRESHOLD_BYTE = 10      // RMS mínimo en datos de frecuencia (0-255) para considerar voz
 const SILENCE_CHECK_MS = 500
 const SILENCE_AUTO_STOP_MS = 300_000   // 5 minutos en ms
