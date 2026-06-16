@@ -96,14 +96,16 @@ export async function createPendingConsultation(
 export async function approveConsultation(consultationId: string): Promise<boolean> {
   if (!isSupabaseConfigured || !consultationId) return false
 
+  // Do NOT set expires_at here — column may not exist yet.
+  // expires_at cleanup happens separately once the SQL migration is confirmed.
   const { data, error } = await supabase
     .from('consultations')
-    .update({ status: 'approved', expires_at: null, approved_at: new Date().toISOString() })
+    .update({ status: 'approved', approved_at: new Date().toISOString() })
     .eq('id', consultationId)
     .select('id')
 
   if (error) {
-    console.error('Error al aprobar consulta:', error)
+    console.error('[Dictia] approveConsultation UPDATE error:', error)
     return false
   }
 

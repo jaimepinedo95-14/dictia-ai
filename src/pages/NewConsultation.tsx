@@ -1095,29 +1095,24 @@ export default function NewConsultation() {
     try {
       console.log('[Dictia] handleApprove — user.id:', user?.id, 'pendingId:', consultationIdRef.current)
 
-      let savedViaPending = false
       if (consultationIdRef.current) {
-        savedViaPending = await approveConsultation(consultationIdRef.current)
-        console.log('[Dictia] approveConsultation result (rows updated):', savedViaPending)
-      }
-
-      if (!savedViaPending) {
-        // Either no pending row, or UPDATE was blocked — INSERT directly
+        // Pending row exists — UPDATE it (never INSERT, avoids 409)
+        const updated = await approveConsultation(consultationIdRef.current)
+        console.log('[Dictia] approveConsultation UPDATE rows affected:', updated)
+        if (!updated) {
+          throw new Error('No se pudo aprobar la nota (error al actualizar en base de datos). Contacta soporte.')
+        }
+      } else {
+        // No pending row (auto-save failed or still in flight) — INSERT fresh
         const insertedId = await saveConsultation(user?.id ?? '', {
           recording_duration: recordingDurationRef.current,
           note_type: noteType,
           status: 'approved',
           specialty: (specialtyOverride || profile?.specialty) ?? null,
         })
-        console.log('[Dictia] saveConsultation INSERT result id:', insertedId)
-
+        console.log('[Dictia] saveConsultation INSERT id:', insertedId)
         if (!insertedId) {
-          throw new Error('No se pudo guardar la nota en la base de datos. Verifica tu conexión a internet.')
-        }
-
-        // Discard the stale pending row to avoid duplicates
-        if (consultationIdRef.current) {
-          discardConsultation(consultationIdRef.current).catch(() => {})
+          throw new Error('No se pudo guardar la nota. Verifica tu conexión a internet.')
         }
       }
 
