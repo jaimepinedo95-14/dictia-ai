@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react'
-import { Search, Calendar, Clock, Stethoscope, RefreshCw, FileText, Video, Activity } from 'lucide-react'
+import {
+  Search, Calendar, Clock, Stethoscope, RefreshCw,
+  FileText, Video, Activity, X, Copy, Check, ChevronRight,
+} from 'lucide-react'
 import AppShell from '../components/AppShell'
 import { useAuth } from '../contexts/AuthContext'
 import { fetchConsultations } from '../lib/db'
-import type { Consultation, NoteType } from '../lib/supabase'
+import type { Consultation, NoteType, SoapNote } from '../lib/supabase'
 
 function formatExpiry(expiresAt: string | null | undefined): { text: string; color: string } | null {
   if (!expiresAt) return null
@@ -36,11 +39,147 @@ const NOTE_TYPE_META: Record<NoteType, { label: string; color: string; Icon: typ
   traslado:     { label: 'Ing. Traslado',  color: 'bg-amber-50 text-amber-700',     Icon: FileText },
 }
 
+type StoredNote = { note: SoapNote; savedAt: number }
+
+function loadStoredNote(consultationId: string): SoapNote | null {
+  try {
+    const raw = localStorage.getItem(`dictia_note_${consultationId}`)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as StoredNote
+    // Discard notes older than 90 days
+    if (Date.now() - parsed.savedAt > 90 * 24 * 60 * 60 * 1000) {
+      localStorage.removeItem(`dictia_note_${consultationId}`)
+      return null
+    }
+    return parsed.note
+  } catch {
+    return null
+  }
+}
+
+function NoteSection({ title, content }: { title: string; content: string | undefined }) {
+  if (!content?.trim()) return null
+  return (
+    <div>
+      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">{title}</p>
+      <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap">{content}</p>
+    </div>
+  )
+}
+
+function NoteModal({
+  consultation,
+  note,
+  onClose,
+}: {
+  consultation: Consultation
+  note: SoapNote | null
+  onClose: () => void
+}) {
+  const [copied, setCopied] = useState(false)
+  const typeMeta = consultation.note_type ? NOTE_TYPE_META[consultation.note_type] : null
+
+  function copyNote() {
+    if (!note) return
+    const lines = [
+      note.chief_complaint && `MOTIVO DE CONSULTA:\n${note.chief_complaint}`,
+      note.current_illness && `\nENFERMEDAD ACTUAL:\n${note.current_illness}`,
+      note.relevant_history && `\nANTECEDENTES:\n${note.relevant_history}`,
+      note.physical_exam && `\nEXAMEN FÍSICO:\n${note.physical_exam}`,
+      note.analysis && `\nANÁLISIS:\n${note.analysis}`,
+      note.diagnosis && `\nDIAGNÓSTICO:\n${note.diagnosis}`,
+      note.cie10_code && `CIE-10: ${note.cie10_code} — ${note.cie10_description}`,
+      note.management_plan && `\nPLAN DE MANEJO:\n${note.management_plan}`,
+      note.patient_instructions && `\nINSTRUCCIONES AL PACIENTE:\n${note.patient_instructions}`,
+    ].filter(Boolean).join('\n')
+    navigator.clipboard.writeText(lines).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full sm:max-w-2xl bg-white sm:rounded-3xl shadow-2xl flex flex-col max-h-screen sm:max-h-[90vh]">
+
+        {/* Header */}
+        <div className="px-6 pt-6 pb-4 border-b border-slate-100 flex items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 flex-wrap mb-1">
+              {typeMeta && (
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${typeMeta.color}`}>
+                  {typeMeta.label}
+                </span>
+              )}
+              {consultation.specialty && (
+                <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">
+                  {consultation.specialty}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-slate-400">{formatDate(consultation.created_at)}</p>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {note && (
+              <button
+                onClick={copyNote}
+                className="flex items-center gap-1.5 text-xs font-semibold bg-primary-50 hover:bg-primary-100 text-primary-700 px-3 py-2 rounded-xl transition-colors"
+              >
+                {copied ? <><Check size={13} /> Copiado</> : <><Copy size={13} /> Copiar nota</>}
+              </button>
+            )}
+            <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
+              <X size={18} className="text-slate-500" />
+            </button>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+          {note ? (
+            <>
+              <NoteSection title="Motivo de consulta"      content={note.chief_complaint} />
+              <NoteSection title="Enfermedad actual"        content={note.current_illness} />
+              <NoteSection title="Antecedentes"             content={note.relevant_history} />
+              <NoteSection title="Examen físico"            content={note.physical_exam} />
+              <NoteSection title="Análisis"                 content={note.analysis} />
+              {note.diagnosis && (
+                <div>
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Diagnóstico</p>
+                  <p className="text-sm font-semibold text-slate-900">{note.diagnosis}</p>
+                  {note.cie10_code && (
+                    <p className="text-xs text-slate-400 mt-0.5">{note.cie10_code} — {note.cie10_description}</p>
+                  )}
+                </div>
+              )}
+              <NoteSection title="Plan de manejo"           content={note.management_plan} />
+              <NoteSection title="Instrucciones al paciente" content={note.patient_instructions} />
+              {note.referral_letter && (
+                <NoteSection title="Carta de remisión"      content={note.referral_letter} />
+              )}
+            </>
+          ) : (
+            <div className="text-center py-10 text-slate-400">
+              <FileText size={32} className="mx-auto mb-3 opacity-30" />
+              <p className="font-medium text-slate-500">Nota no disponible en este dispositivo</p>
+              <p className="text-xs mt-2 max-w-xs mx-auto leading-relaxed">
+                Dictia no almacena notas en servidores. Las notas solo están disponibles en el dispositivo y navegador donde fueron aprobadas.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function History() {
   const { user, isSupabaseMode } = useAuth()
   const [consultations, setConsultations] = useState<Consultation[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [selected, setSelected] = useState<{ consultation: Consultation; note: SoapNote | null } | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -53,6 +192,10 @@ export default function History() {
     }
     load()
   }, [user, isSupabaseMode])
+
+  function openNote(c: Consultation) {
+    setSelected({ consultation: c, note: loadStoredNote(c.id) })
+  }
 
   const filtered = consultations.filter(c => {
     const q = search.toLowerCase()
@@ -78,7 +221,7 @@ export default function History() {
         <div className="bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-3 flex items-start gap-3">
           <span className="text-emerald-500 mt-0.5">🔒</span>
           <p className="text-xs text-emerald-700 leading-relaxed">
-            <span className="font-semibold">Privacidad garantizada:</span> Dictia no almacena datos de pacientes. Solo guardamos metadatos (fecha, duración, tipo). Las notas clínicas nunca salen de tu pantalla.
+            <span className="font-semibold">Privacidad garantizada:</span> Dictia no almacena datos de pacientes en servidores. Las notas solo están disponibles en el dispositivo donde fueron aprobadas.
           </p>
         </div>
 
@@ -96,7 +239,7 @@ export default function History() {
         {!loading && filtered.length > 0 && (
           <div className="grid grid-cols-3 gap-3">
             {[
-              { label: 'Consultas', value: filtered.length },
+              { label: 'Consultas',        value: filtered.length },
               { label: 'Minutos grabados', value: Math.round(totalDuration / 60) },
               { label: 'Minutos ahorrados', value: timeSaved },
             ].map(({ label, value }) => (
@@ -136,8 +279,14 @@ export default function History() {
               const TypeIcon = typeMeta?.Icon ?? Stethoscope
               const isPending = c.status === 'completed'
               const expiry = isPending ? formatExpiry(c.expires_at) : null
+              const hasNote = !!loadStoredNote(c.id)
+
               return (
-                <div key={c.id} className={`bg-white rounded-2xl border p-5 hover:shadow-sm transition-shadow ${isPending ? 'border-amber-200' : 'border-slate-100'}`}>
+                <button
+                  key={c.id}
+                  onClick={() => openNote(c)}
+                  className={`w-full text-left bg-white rounded-2xl border p-5 hover:shadow-md transition-all cursor-pointer group ${isPending ? 'border-amber-200' : 'border-slate-100'}`}
+                >
                   <div className="flex items-center gap-4">
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isPending ? 'bg-amber-50' : 'bg-primary-50'}`}>
                       <TypeIcon size={18} className={isPending ? 'text-amber-600' : 'text-primary-600'} />
@@ -151,6 +300,9 @@ export default function History() {
                         )}
                         {c.specialty && (
                           <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">{c.specialty}</span>
+                        )}
+                        {hasNote && (
+                          <span className="text-xs bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full font-medium">Ver nota</span>
                         )}
                       </div>
                       {isPending ? (
@@ -172,14 +324,23 @@ export default function History() {
                           {formatDuration(c.recording_duration)} grabado
                         </div>
                       )}
+                      <ChevronRight size={14} className="text-slate-300 group-hover:text-slate-500 transition-colors mt-1" />
                     </div>
                   </div>
-                </div>
+                </button>
               )
             })}
           </div>
         )}
       </div>
+
+      {selected && (
+        <NoteModal
+          consultation={selected.consultation}
+          note={selected.note}
+          onClose={() => setSelected(null)}
+        />
+      )}
     </AppShell>
   )
 }

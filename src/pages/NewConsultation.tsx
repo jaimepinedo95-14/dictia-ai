@@ -1111,6 +1111,13 @@ export default function NewConsultation() {
         if (!updated) {
           throw new Error('No se pudo aprobar la nota (error al actualizar en base de datos). Contacta soporte.')
         }
+        // Store note text locally so History can display it
+        try {
+          localStorage.setItem(
+            `dictia_note_${consultationIdRef.current}`,
+            JSON.stringify({ note, savedAt: Date.now() })
+          )
+        } catch { /* ignore storage errors */ }
       } else {
         // No pending row (auto-save failed or still in flight) — INSERT fresh
         const insertedId = await saveConsultation(user?.id ?? '', {
@@ -1123,6 +1130,12 @@ export default function NewConsultation() {
         if (!insertedId) {
           throw new Error('No se pudo guardar la nota. Verifica tu conexión a internet.')
         }
+        try {
+          localStorage.setItem(
+            `dictia_note_${insertedId}`,
+            JSON.stringify({ note, savedAt: Date.now() })
+          )
+        } catch { /* ignore storage errors */ }
       }
 
       // Deduct credits for institutional users
