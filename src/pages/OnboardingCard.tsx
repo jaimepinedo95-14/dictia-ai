@@ -16,9 +16,9 @@ const PLAN_NAMES: Record<string, string> = {
 
 const PLAN_PRICES: Record<string, number> = {
   basic: 39900,
-  standard: 54900,
-  advanced: 69900,
-  pro: 99900,
+  standard: 64900,
+  advanced: 89900,
+  pro: 109900,
 }
 
 function formatCOP(amount: number) {
@@ -40,7 +40,7 @@ export default function OnboardingCard() {
 
   const planId = profile?.plan_seleccionado ?? 'standard'
   const planName = PLAN_NAMES[planId] ?? planId
-  const planPrice = PLAN_PRICES[planId] ?? 54900
+  const planPrice = PLAN_PRICES[planId] ?? 64900
 
   // ── Handle redirect back from Wompi ───────────────────────────────────────────
   useEffect(() => {

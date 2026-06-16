@@ -19,9 +19,9 @@ const PLAN_NAMES: Record<string, string> = {
 
 const PLAN_OPTIONS = [
   { id: 'basic', label: 'Básico — $39.900/mes' },
-  { id: 'standard', label: 'Estándar — $54.900/mes' },
-  { id: 'advanced', label: 'Avanzado — $69.900/mes' },
-  { id: 'pro', label: 'Pro — $99.900/mes' },
+  { id: 'standard', label: 'Estándar — $64.900/mes' },
+  { id: 'advanced', label: 'Avanzado — $89.900/mes' },
+  { id: 'pro', label: 'Pro — $109.900/mes' },
 ]
 
 const STATUS_MAP: Record<string, { label: string; cls: string }> = {

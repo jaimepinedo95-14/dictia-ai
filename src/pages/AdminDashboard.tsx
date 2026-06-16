@@ -17,15 +17,15 @@ import Logo from '../components/Logo'
 type Tab = 'dashboard' | 'usuarios' | 'metricas' | 'config'
 
 const PLAN_OPTIONS = [
-  { id: 'free_trial',  label: 'Trial gratis' },
+  { id: 'free_trial',  label: 'Trial gratis (10 notas)' },
   { id: 'basic',       label: 'Básico — $39.900' },
-  { id: 'standard',   label: 'Estándar — $54.900' },
-  { id: 'advanced',   label: 'Avanzado — $69.900' },
-  { id: 'pro',        label: 'Pro — $99.900' },
+  { id: 'standard',   label: 'Estándar — $64.900' },
+  { id: 'advanced',   label: 'Avanzado — $89.900' },
+  { id: 'pro',        label: 'Pro — $109.900' },
 ]
 
 const PLAN_PRICES: Record<string, number> = {
-  basic: 39900, standard: 54900, advanced: 69900, pro: 99900,
+  basic: 39900, standard: 64900, advanced: 89900, pro: 109900,
 }
 
 const STATUS_MAP: Record<string, { label: string; cls: string }> = {

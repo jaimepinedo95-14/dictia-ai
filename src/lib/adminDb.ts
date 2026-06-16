@@ -204,7 +204,7 @@ export type UserSummary = {
 }
 
 const PLAN_LIMITS: Record<string, number> = {
-  basic: 130, standard: 250, advanced: 440, pro: 800, free_trial: 999999,
+  basic: 100, standard: 250, advanced: 350, pro: 500, free_trial: 10,
 }
 
 export const MOCK_USERS: UserSummary[] = [
@@ -294,7 +294,7 @@ export async function reactivateUser(userId: string): Promise<void> {
   if (!isSupabaseConfigured) return
   const { error } = await supabase.from('user_profiles').update({
     subscription_status: 'active',
-    consultations_limit: 250,
+    consultations_limit: 250,  // default to standard on reactivate
   }).eq('id', userId)
   if (error) console.error('[Dictia] reactivateUser:', error.message)
 }
