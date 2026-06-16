@@ -15,6 +15,7 @@ import {
 import { saveConsultation, fetchRecentApprovedNotes, createPendingConsultation, approveConsultation, discardConsultation } from '../lib/db'
 import { fetchClinicCredits, deductClinicCredit } from '../lib/adminDb'
 import type { SoapNote, NoteType } from '../lib/supabase'
+import { Analytics } from '../lib/analytics'
 
 type Stage = 'idle' | 'recording' | 'processing' | 'done' | 'error'
 type ProcessingStep = 'transcribing' | 'generating' | null
@@ -1007,6 +1008,7 @@ export default function NewConsultation() {
         return
       }
       setTranscript(fullTranscript)
+      Analytics.consultaGrabada(recordingDurationRef.current, noteType)
       await processTranscript(fullTranscript)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Error al procesar el audio'
@@ -1037,6 +1039,7 @@ export default function NewConsultation() {
         setTranscript('')
         setStage('done')
         setProcessingStep(null)
+        Analytics.notaGenerada(noteType, (specialtyOverride || profile?.specialty) ?? null)
         // Auto-save as pending — ID stored for approve/discard
         consultationIdRef.current = null
         console.log('[Dictia] auto-save iniciando, consultationIdRef reset a null')
@@ -1137,6 +1140,7 @@ export default function NewConsultation() {
       }
 
       await incrementConsultations()
+      Analytics.notaAprobada(noteType, (specialtyOverride || profile?.specialty) ?? null)
       const text = formatNoteForClipboard(note, patientName || undefined)
       await navigator.clipboard.writeText(text).catch(() => {})
       setCopied(true)

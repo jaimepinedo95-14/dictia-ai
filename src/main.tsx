@@ -2,6 +2,9 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
+import { initAnalytics } from './lib/analytics'
+
+initAnalytics()
 
 // Register service worker for PWA support
 if ('serviceWorker' in navigator) {

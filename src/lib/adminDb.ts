@@ -260,6 +260,8 @@ export async function updateUserPlan(userId: string, plan: string): Promise<void
 export async function grantFreeAccess(userId: string): Promise<void> {
   if (!isSupabaseConfigured) return
   const { error } = await supabase.from('user_profiles').update({
+    plan: 'gratis',
+    plan_seleccionado: 'gratis',
     subscription_status: 'active',
     consultations_limit: 999999,
   }).eq('id', userId)

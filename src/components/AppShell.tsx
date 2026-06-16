@@ -9,6 +9,7 @@ import Logo from './Logo'
 import TrialBanner from './TrialBanner'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
+import { identifyUser } from '../lib/analytics'
 
 const NAV_ITEMS = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Inicio' },
@@ -26,6 +27,39 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [realtimeToast, setRealtimeToast] = useState<string | null>(null)
 
   const dismissToast = useCallback(() => setRealtimeToast(null), [])
+
+  // ── PostHog identify ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (user && profile) {
+      identifyUser(user.id, { email: profile.email, specialty: profile.specialty, plan: profile.plan })
+    }
+  }, [user?.id, profile?.plan])
+
+  // ── Crisp chat (solo cuando usuario logueado) ──────────────────────────────────
+  useEffect(() => {
+    const crispId = import.meta.env.VITE_CRISP_ID as string | undefined
+    if (!crispId || !user) return
+
+    // Inject Crisp script once
+    if (!window.$crisp) {
+      window.$crisp = []
+      window.CRISP_WEBSITE_ID = crispId
+      const s = document.createElement('script')
+      s.src = 'https://client.crisp.chat/l.js'
+      s.async = true
+      document.head.appendChild(s)
+    }
+
+    if (profile) {
+      window.$crisp.push(['set', 'user:email', [profile.email]])
+      window.$crisp.push(['set', 'user:nickname', [profile.full_name]])
+    }
+
+    return () => {
+      // Hide chat on logout
+      if (window.$crisp) window.$crisp.push(['do', 'chat:hide'])
+    }
+  }, [user?.id, profile?.email])
 
   useEffect(() => {
     if (!isSupabaseConfigured || !user?.id) return

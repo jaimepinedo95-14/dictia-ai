@@ -3,6 +3,7 @@ import type { User, Session } from '@supabase/supabase-js'
 import { supabase, isSupabaseConfigured, type UserProfile } from '../lib/supabase'
 import { incrementConsultationsUsed } from '../lib/db'
 import { fetchClinicById, getCurrentIp, isIpAuthorized } from '../lib/adminDb'
+import { Analytics } from '../lib/analytics'
 
 type CanRecordResult = { allowed: boolean; reason?: string }
 
@@ -201,6 +202,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         subscription_status: 'pending',
       })
       if (insertError) return { error: insertError }
+      Analytics.usuarioRegistrado(data.specialty ?? 'Medicina General', data.country ?? 'Colombia')
     }
 
     // session is null when Supabase requires email confirmation
