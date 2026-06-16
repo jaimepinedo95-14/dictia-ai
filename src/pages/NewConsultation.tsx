@@ -1093,16 +1093,22 @@ export default function NewConsultation() {
     if (!note) return
     setSaving(true)
     try {
+      let savedViaPending = false
       if (consultationIdRef.current) {
-        await approveConsultation(consultationIdRef.current)
-      } else {
-        // Fallback: auto-save didn't complete in time, insert fresh
+        savedViaPending = await approveConsultation(consultationIdRef.current)
+      }
+      if (!savedViaPending) {
+        // Either no pending row, or UPDATE was blocked by RLS — always INSERT as fallback
         await saveConsultation(user?.id ?? '', {
           recording_duration: recordingDurationRef.current,
           note_type: noteType,
           status: 'approved',
           specialty: (specialtyOverride || profile?.specialty) ?? null,
         })
+        // Discard the stale pending row to avoid duplicates
+        if (consultationIdRef.current) {
+          discardConsultation(consultationIdRef.current).catch(() => {})
+        }
       }
 
       // Deduct credits for institutional users

@@ -69,23 +69,45 @@ export async function createPendingConsultation(
     .select('id')
     .single()
 
-  if (error) {
-    console.error('Error al guardar consulta pendiente:', error)
+  if (!error) return (row as { id: string }).id
+
+  // Fallback: expires_at column doesn't exist yet
+  console.warn('[Dictia] createPendingConsultation: expires_at missing, inserting without it')
+  const { data: row2, error: err2 } = await supabase
+    .from('consultations')
+    .insert({
+      user_id: userId,
+      recording_duration: data.recording_duration,
+      note_type: data.note_type ?? null,
+      status: 'completed',
+      specialty: data.specialty ?? null,
+    })
+    .select('id')
+    .single()
+
+  if (err2) {
+    console.error('Error al guardar consulta pendiente (fallback):', err2)
     return null
   }
 
-  return (row as { id: string }).id
+  return (row2 as { id: string }).id
 }
 
-export async function approveConsultation(consultationId: string): Promise<void> {
-  if (!isSupabaseConfigured || !consultationId) return
+export async function approveConsultation(consultationId: string): Promise<boolean> {
+  if (!isSupabaseConfigured || !consultationId) return false
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('consultations')
     .update({ status: 'approved', expires_at: null, approved_at: new Date().toISOString() })
     .eq('id', consultationId)
+    .select('id')
 
-  if (error) console.error('Error al aprobar consulta:', error)
+  if (error) {
+    console.error('Error al aprobar consulta:', error)
+    return false
+  }
+
+  return (data?.length ?? 0) > 0
 }
 
 export async function discardConsultation(consultationId: string): Promise<void> {
@@ -107,6 +129,7 @@ export async function fetchConsultations(
 
   const now = new Date().toISOString()
 
+  // Try with expires_at column (available after SQL migration)
   const { data, error } = await supabase
     .from('consultations')
     .select('id, user_id, recording_duration, note_type, status, specialty, created_at, approved_at, expires_at')
@@ -116,12 +139,24 @@ export async function fetchConsultations(
     .order('created_at', { ascending: false })
     .limit(limit)
 
-  if (error) {
-    console.error('Error al cargar consultas:', error)
+  if (!error) return (data ?? []) as Consultation[]
+
+  // Fallback: expires_at column doesn't exist yet — run the SQL migration in Supabase
+  console.warn('[Dictia] fetchConsultations: expires_at column missing, using fallback query')
+  const { data: data2, error: err2 } = await supabase
+    .from('consultations')
+    .select('id, user_id, recording_duration, note_type, status, specialty, created_at, approved_at')
+    .eq('user_id', userId)
+    .neq('status', 'discarded')
+    .order('created_at', { ascending: false })
+    .limit(limit)
+
+  if (err2) {
+    console.error('Error al cargar consultas:', err2)
     return []
   }
 
-  return (data ?? []) as Consultation[]
+  return (data2 ?? []).map(row => ({ ...row, expires_at: null })) as Consultation[]
 }
 
 export async function getMonthlyConsultationCount(userId: string): Promise<number> {
