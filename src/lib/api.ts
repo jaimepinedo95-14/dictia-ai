@@ -525,6 +525,48 @@ type GenerateOptions = {
   isDictation?: boolean
 }
 
+// ─── Web-search-enabled Claude call ───────────────────────────────────────────
+// Separate from callClaude to keep the standard JSON flow untouched.
+// Extracts only text blocks from the response (tool_use / tool_result blocks
+// from web_search_20250305 are skipped — they are Anthropic-internal).
+async function callClaudeWithWebSearch(systemPrompt: string, userMessage: string): Promise<string> {
+  if (!isAnthropicConfigured()) {
+    throw new Error('VITE_ANTHROPIC_API_KEY no configurada.')
+  }
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01',
+      'anthropic-beta': 'web-search-2025-03-05',
+      'content-type': 'application/json',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 2000,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userMessage }],
+      tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+    }),
+  })
+
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(`Anthropic error ${res.status}: ${body}`)
+  }
+
+  type ContentBlock = { type: string; text?: string }
+  const data = await res.json() as { content: ContentBlock[] }
+  return data.content
+    .filter(b => b.type === 'text' && b.text)
+    .map(b => b.text!)
+    .join('\n')
+    .trim()
+}
+
+// ─── Standard Claude call (JSON notes) ────────────────────────────────────────
 async function callClaude(systemPrompt: string, userMessage: string, maxTokens = 4000): Promise<string> {
   if (!isAnthropicConfigured()) {
     throw new Error('VITE_ANTHROPIC_API_KEY no configurada. Agrega tu API key de Anthropic en el archivo .env')
@@ -934,6 +976,37 @@ Responde ÚNICAMENTE en formato JSON con esta estructura exacta:
     tratamiento: parsed.tratamiento ?? [],
     complicaciones: parsed.complicaciones ?? [],
   }
+}
+
+// ─── Live guideline search via web_search_20250305 ────────────────────────────
+// Called on demand by the "Buscar evidencia" button — never during automatic
+// note generation so latency of the main flow is unaffected.
+export async function searchGuidelinesWithWeb(diagnosis: string): Promise<string> {
+  const year = new Date().getFullYear()
+  const systemPrompt = `Eres un asistente de apoyo clínico para médicos colombianos. Se te da un diagnóstico. Usa web_search para buscar las guías de manejo actuales más relevantes.
+
+Estrategia de búsqueda (en este orden):
+1. "guías manejo ${diagnosis} Colombia ${year}"
+2. "clinical guidelines ${diagnosis} treatment ${year}"
+3. "${diagnosis} first line treatment dosage ${year}"
+
+Luego presenta en español claro y conciso, sin introducción:
+
+**Tratamiento de primera línea**
+[fármaco(s) con dosis, vía y duración cuando estén disponibles]
+
+**Cuándo hospitalizar**
+[criterios específicos]
+
+**Seguimiento**
+[tiempo y criterio de alta/referencia]
+
+**Fuentes consultadas**
+[lista breve de las fuentes que encontraste con año de publicación]
+
+Máximo 400 palabras. Sé específico y práctico. Si no encuentras guías colombianas, usa NICE, OMS, AHA o Cochrane.`
+
+  return callClaudeWithWebSearch(systemPrompt, `Diagnóstico: ${diagnosis}`)
 }
 
 export function formatNoteForClipboard(note: SoapNote, patientName?: string): string {

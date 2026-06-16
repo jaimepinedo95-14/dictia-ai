@@ -3,13 +3,14 @@ import { useNavigate, Link } from 'react-router-dom'
 import {
   Mic, Square, CheckCircle, Copy, Edit3, Trash2, AlertTriangle,
   ChevronDown, ChevronUp, Zap, RefreshCw, MicOff, Pill, Wifi, Shield,
-  MessageCircle, BookOpen, Send, Monitor, ClipboardList, X,
+  MessageCircle, BookOpen, Send, Monitor, ClipboardList, X, Globe,
 } from 'lucide-react'
 import AppShell from '../components/AppShell'
 import { useAuth } from '../contexts/AuthContext'
 import {
   transcribeAudio, generateSoapNote, formatNoteForClipboard,
   isGroqConfigured, isAnthropicConfigured, askAboutNote, generateClinicalEvidence,
+  searchGuidelinesWithWeb,
   type ClinicalAnalysis,
 } from '../lib/api'
 import { saveConsultation, fetchRecentApprovedNotes, createPendingConsultation, approveConsultation, discardConsultation } from '../lib/db'
@@ -479,6 +480,83 @@ function ClinicalEvidence({ diagnosis }: { diagnosis: string }) {
                   Análisis generado por IA con base en guías internacionales. Siempre contrasta con fuentes primarias y el contexto clínico del paciente.
                 </p>
               </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Web-search evidence button ───────────────────────────────────────────────
+function WebSearchEvidence({ diagnosis }: { diagnosis: string }) {
+  const [open, setOpen] = useState(false)
+  const [result, setResult] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [loaded, setLoaded] = useState(false)
+
+  async function handleSearch() {
+    if (loaded) { setOpen(o => !o); return }
+    setOpen(true)
+    setLoading(true)
+    try {
+      const text = await searchGuidelinesWithWeb(diagnosis)
+      setResult(text)
+      setLoaded(true)
+    } catch {
+      setResult('No se pudo obtener la búsqueda. Verifica tu conexión e intenta de nuevo.')
+      setLoaded(true)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border-2 border-indigo-100 shadow-sm overflow-hidden">
+      <button
+        onClick={handleSearch}
+        className="w-full flex items-center justify-between gap-3 px-5 py-4 hover:bg-indigo-50 transition-colors"
+      >
+        <div className="flex items-center gap-2 flex-wrap">
+          <Globe size={16} className="text-indigo-600" />
+          <span className="text-sm font-bold text-slate-700">Buscar evidencia actual</span>
+          <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-medium">
+            🔍 Web · Guías {new Date().getFullYear()}
+          </span>
+          {!loaded && !loading && (
+            <span className="text-xs text-slate-400">· busca guías al hacer clic</span>
+          )}
+          {loaded && (
+            <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">
+              Listo
+            </span>
+          )}
+        </div>
+        {open
+          ? <ChevronUp size={16} className="text-slate-400 flex-shrink-0" />
+          : <ChevronDown size={16} className="text-indigo-400 flex-shrink-0" />}
+      </button>
+
+      {open && (
+        <div className="border-t border-slate-100 px-5 pb-5 pt-4">
+          {loading ? (
+            <div className="flex flex-col items-center gap-3 py-8 text-slate-500">
+              <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+              <p className="text-sm font-medium">Buscando guías clínicas actuales...</p>
+              <p className="text-xs text-slate-400">Esto puede tomar unos segundos</p>
+            </div>
+          ) : result && (
+            <>
+              <div
+                className="text-sm text-slate-700 leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: result
+                  .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                  .replace(/\n/g, '<br />')
+                }}
+              />
+              <p className="text-xs text-slate-400 pt-4 border-t border-slate-100 mt-4">
+                ⚕️ Sugerencias basadas en guías clínicas vigentes encontradas en internet. El criterio clínico final es responsabilidad exclusiva del médico tratante.
+              </p>
             </>
           )}
         </div>
@@ -1047,6 +1125,7 @@ export default function NewConsultation() {
           recording_duration: recordingDurationRef.current,
           note_type: noteType,
           specialty: (specialtyOverride || profile?.specialty) ?? null,
+          note_content: generatedNote,
         }).then(id => {
           console.log('[Dictia] auto-save completado, consultationIdRef.current =', id)
           consultationIdRef.current = id
@@ -1125,6 +1204,7 @@ export default function NewConsultation() {
           note_type: noteType,
           status: 'approved',
           specialty: (specialtyOverride || profile?.specialty) ?? null,
+          note_content: note,
         })
         console.log('[Dictia] saveConsultation INSERT id:', insertedId)
         if (!insertedId) {
@@ -1870,8 +1950,11 @@ export default function NewConsultation() {
                   </div>
                 )}
 
-                {/* Clinical evidence (only for standard notes with a diagnosis) */}
+                {/* Clinical evidence (knowledge base) */}
                 {note.diagnosis && <ClinicalEvidence diagnosis={note.diagnosis} />}
+
+                {/* Web-search evidence (live guidelines, on demand) */}
+                {note.diagnosis && <WebSearchEvidence diagnosis={note.diagnosis} />}
               </>
             )}
 
