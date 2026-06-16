@@ -105,14 +105,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .select('*')
       .eq('id', userId)
       .maybeSingle()
+
     if (data) {
       const p = data as UserProfile
       if (p.email === 'jaimepinedo95@gmail.com') p.role = 'super_admin'
       setProfile(p)
-      // IP check for institutional users
-      if (p.clinica_id) {
-        await checkIpAccess(p.clinica_id)
-      }
+      if (p.clinica_id) await checkIpAccess(p.clinica_id)
+      return
+    }
+
+    // No profile found — user exists in auth.users but not in user_profiles.
+    // Auto-create a minimal profile so FK constraints don't block saves.
+    const { data: authUser } = await supabase.auth.getUser()
+    const email = authUser?.user?.email ?? ''
+    console.warn('[Dictia] fetchProfile: no profile found, auto-creating for', email)
+
+    const { data: created, error } = await supabase
+      .from('user_profiles')
+      .insert({
+        id: userId,
+        email,
+        full_name: email.split('@')[0] ?? '',
+        country: 'Colombia',
+        specialty: 'Medicina General',
+        gender: 'doctor',
+        plan: 'free_trial',
+        consultations_used: 0,
+        consultations_limit: 999999,
+        subscription_status: 'pending',
+      })
+      .select('*')
+      .single()
+
+    if (!error && created) {
+      const p = created as UserProfile
+      if (p.email === 'jaimepinedo95@gmail.com') p.role = 'super_admin'
+      setProfile(p)
+    } else {
+      console.error('[Dictia] fetchProfile: auto-create failed:', error?.message)
     }
   }
 
