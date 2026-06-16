@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   Mic, Clock, TrendingUp, ChevronRight, Calendar,
-  Stethoscope, AlertTriangle, RefreshCw, Shield,
+  Stethoscope, AlertTriangle, RefreshCw, Shield, FileText,
 } from 'lucide-react'
 import AppShell from '../components/AppShell'
 import { useAuth } from '../contexts/AuthContext'
@@ -11,6 +11,18 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import type { Consultation } from '../lib/supabase'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+function formatExpiryCountdown(expiresAt: string | null | undefined): { text: string; urgent: boolean } | null {
+  if (!expiresAt) return null
+  const remaining = new Date(expiresAt).getTime() - Date.now()
+  if (remaining <= 0) return null
+  const hours = Math.floor(remaining / (1000 * 60 * 60))
+  const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60))
+  const text = hours > 0
+    ? `Disponible ${hours}h${minutes > 0 ? ` ${minutes}min` : ''} más`
+    : `Disponible ${minutes}min más`
+  return { text, urgent: hours < 2 }
+}
+
 function formatTimeAgo(dateStr: string) {
   const diff = Date.now() - new Date(dateStr).getTime()
   const hours = Math.floor(diff / 3_600_000)
@@ -40,6 +52,7 @@ const PLAN_LABELS: Record<string, string> = {
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function Dashboard() {
   const { user, profile, isSupabaseMode } = useAuth()
+  const navigate = useNavigate()
   const [consultations, setConsultations] = useState<Consultation[]>([])
   const [monthCount, setMonthCount] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -280,11 +293,21 @@ export default function Dashboard() {
             <div className="space-y-3">
               {consultations.slice(0, 8).map(c => {
                 const typeInfo = NOTE_TYPE_LABELS[c.note_type ?? ''] ?? { label: 'Consulta', color: 'text-slate-600', badge: 'bg-slate-100 text-slate-600' }
+                const isPending  = c.status === 'completed'
+                const countdown  = isPending ? formatExpiryCountdown(c.expires_at) : null
                 return (
-                  <div key={c.id} className="card hover:border-primary-200 hover:shadow-md transition-all duration-200">
+                  <button
+                    key={c.id}
+                    onClick={() => navigate('/historial')}
+                    className={`w-full text-left card hover:shadow-md transition-all duration-200 cursor-pointer group ${
+                      isPending ? 'border-amber-200 hover:border-amber-300' : 'hover:border-primary-200'
+                    }`}
+                  >
                     <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${typeInfo.badge}`}>
-                        <Stethoscope size={18} className={typeInfo.color} />
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                        isPending ? 'bg-amber-50' : typeInfo.badge
+                      }`}>
+                        <Stethoscope size={18} className={isPending ? 'text-amber-600' : typeInfo.color} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -294,27 +317,39 @@ export default function Dashboard() {
                           {c.specialty && (
                             <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">{c.specialty}</span>
                           )}
+                          {!isPending && (
+                            <span className="text-xs bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full font-medium flex items-center gap-0.5">
+                              <FileText size={9} /> Ver nota
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs text-emerald-600 font-medium">Nota aprobada</span>
+                          {isPending ? (
+                            <span className={`text-xs font-semibold ${countdown?.urgent ? 'text-red-600' : 'text-amber-600'}`}>
+                              Pendiente de aprobación{countdown ? ` — ${countdown.text}` : ''}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-emerald-600 font-medium">Nota aprobada</span>
+                          )}
                           {c.recording_duration > 0 && (
                             <span className="text-xs text-slate-400">
-                              · {Math.floor(c.recording_duration / 60)}:{String(c.recording_duration % 60).padStart(2, '0')} min grabados
+                              · {Math.floor(c.recording_duration / 60)}:{String(c.recording_duration % 60).padStart(2, '0')} min
                             </span>
                           )}
                         </div>
                       </div>
-                      <div className="text-right flex-shrink-0">
+                      <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
                         <div className="flex items-center gap-1 text-xs text-slate-400 justify-end">
                           <Calendar size={11} />
                           {formatTimeAgo(c.created_at)}
                         </div>
-                        <p className="text-xs text-slate-300 mt-1">
+                        <p className="text-xs text-slate-300">
                           {new Date(c.created_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })}
                         </p>
+                        <ChevronRight size={13} className="text-slate-200 group-hover:text-primary-400 transition-colors" />
                       </div>
                     </div>
-                  </div>
+                  </button>
                 )
               })}
             </div>
