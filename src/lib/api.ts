@@ -28,6 +28,7 @@ INSTRUCCIONES CRÍTICAS:
 
 - Si el paciente mencionó escala de dolor (EVA u otra), inclúyela en la enfermedad actual.
 - Documenta el tiempo de evolución EXACTO cuando fue mencionado.
+- TIEMPO DE EVOLUCIÓN: Si el médico menciona una hora de inicio y una hora actual, calcula el tiempo correctamente. Ejemplo: "desde las 2 de la tarde y son las 5" → escribe "3 horas de evolución". Si el médico dice directamente el tiempo ("2 días de evolución", "3 horas", "desde ayer"), úsalo exactamente como lo dijo. NUNCA inventes ni estimes tiempos de evolución que no se puedan calcular directamente de lo dicho por el médico.
 - Si el paciente mencionó automedicación, documéntala en antecedentes farmacológicos o enfermedad actual.
 
 ROL DE DICTIA AI:

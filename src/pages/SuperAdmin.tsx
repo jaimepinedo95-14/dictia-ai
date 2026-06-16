@@ -178,7 +178,7 @@ export default function SuperAdmin() {
               ) : users.length === 0 ? (
                 <div className="p-10 text-center text-slate-400">
                   <p className="font-medium">Sin usuarios visibles</p>
-                  <p className="text-xs mt-1">Agrega la política RLS de super admin en Supabase (ver nota abajo).</p>
+                  <p className="text-xs mt-1">Verifica las políticas RLS en Supabase para este email.</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -278,19 +278,6 @@ export default function SuperAdmin() {
               )}
             </div>
 
-            {/* RLS note */}
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-              <p className="text-xs font-semibold text-amber-800 mb-2">
-                ⚠ Para ver y gestionar todos los usuarios, ejecuta en Supabase → SQL Editor:
-              </p>
-              <pre className="text-xs bg-amber-100 rounded-lg p-3 text-amber-900 overflow-x-auto whitespace-pre-wrap">{`create policy "Super admin reads all profiles"
-  on public.user_profiles for select
-  using (auth.jwt() ->> 'email' = 'jaimepinedo95@gmail.com' OR auth.uid() = id);
-
-create policy "Super admin updates all profiles"
-  on public.user_profiles for update
-  using (auth.jwt() ->> 'email' = 'jaimepinedo95@gmail.com' OR auth.uid() = id);`}</pre>
-            </div>
           </>
         )}
 
