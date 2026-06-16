@@ -48,17 +48,71 @@ export async function saveConsultation(
   return (row as { id: string }).id
 }
 
+export async function createPendingConsultation(
+  userId: string,
+  data: { recording_duration: number; note_type?: NoteType | null; specialty?: string | null }
+): Promise<string | null> {
+  if (!isSupabaseConfigured || !userId) return null
+
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+
+  const { data: row, error } = await supabase
+    .from('consultations')
+    .insert({
+      user_id: userId,
+      recording_duration: data.recording_duration,
+      note_type: data.note_type ?? null,
+      status: 'completed',
+      specialty: data.specialty ?? null,
+      expires_at: expiresAt,
+    })
+    .select('id')
+    .single()
+
+  if (error) {
+    console.error('Error al guardar consulta pendiente:', error)
+    return null
+  }
+
+  return (row as { id: string }).id
+}
+
+export async function approveConsultation(consultationId: string): Promise<void> {
+  if (!isSupabaseConfigured || !consultationId) return
+
+  const { error } = await supabase
+    .from('consultations')
+    .update({ status: 'approved', expires_at: null, approved_at: new Date().toISOString() })
+    .eq('id', consultationId)
+
+  if (error) console.error('Error al aprobar consulta:', error)
+}
+
+export async function discardConsultation(consultationId: string): Promise<void> {
+  if (!isSupabaseConfigured || !consultationId) return
+
+  const { error } = await supabase
+    .from('consultations')
+    .update({ status: 'discarded' })
+    .eq('id', consultationId)
+
+  if (error) console.error('Error al descartar consulta:', error)
+}
+
 export async function fetchConsultations(
   userId: string,
   limit = 20
 ): Promise<Consultation[]> {
   if (!isSupabaseConfigured || !userId) return []
 
+  const now = new Date().toISOString()
+
   const { data, error } = await supabase
     .from('consultations')
-    .select('id, user_id, recording_duration, note_type, status, specialty, created_at, approved_at')
+    .select('id, user_id, recording_duration, note_type, status, specialty, created_at, approved_at, expires_at')
     .eq('user_id', userId)
     .neq('status', 'discarded')
+    .or(`expires_at.is.null,expires_at.gt.${now}`)
     .order('created_at', { ascending: false })
     .limit(limit)
 

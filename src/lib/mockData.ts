@@ -53,6 +53,7 @@ export const MOCK_CONSULTATIONS: Consultation[] = [
     specialty: 'Medicina General',
     created_at: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
     approved_at: new Date(Date.now() - 50 * 60 * 1000).toISOString(),
+    expires_at: null,
   },
   {
     id: '2',
@@ -63,6 +64,7 @@ export const MOCK_CONSULTATIONS: Consultation[] = [
     specialty: 'Ginecología',
     created_at: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
     approved_at: new Date(Date.now() - 2.5 * 60 * 60 * 1000).toISOString(),
+    expires_at: null,
   },
   {
     id: '3',
@@ -73,6 +75,7 @@ export const MOCK_CONSULTATIONS: Consultation[] = [
     specialty: 'Medicina General',
     created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
     approved_at: new Date(Date.now() - 23 * 60 * 60 * 1000).toISOString(),
+    expires_at: null,
   },
   {
     id: '4',
@@ -83,6 +86,7 @@ export const MOCK_CONSULTATIONS: Consultation[] = [
     specialty: 'Medicina Interna',
     created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
     approved_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 + 30 * 60 * 1000).toISOString(),
+    expires_at: null,
   },
   {
     id: '5',
@@ -93,6 +97,7 @@ export const MOCK_CONSULTATIONS: Consultation[] = [
     specialty: 'Urgencias',
     created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
     approved_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000 + 45 * 60 * 1000).toISOString(),
+    expires_at: null,
   },
 ]
 

@@ -12,7 +12,7 @@ import {
   isGroqConfigured, isAnthropicConfigured, askAboutNote, generateClinicalEvidence,
   type ClinicalAnalysis,
 } from '../lib/api'
-import { saveConsultation, fetchRecentApprovedNotes } from '../lib/db'
+import { saveConsultation, fetchRecentApprovedNotes, createPendingConsultation, approveConsultation, discardConsultation } from '../lib/db'
 import { fetchClinicCredits, deductClinicCredit } from '../lib/adminDb'
 import type { SoapNote, NoteType } from '../lib/supabase'
 
@@ -680,6 +680,7 @@ export default function NewConsultation() {
   const isStoppingRef = useRef(false)
   const accumulatedTranscriptRef = useRef('')
   const audioChunksRef = useRef<Blob[]>([])
+  const consultationIdRef = useRef<string | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const mimeTypeRef = useRef('')
   const wakeLockRef = useRef<WakeLockSentinel | null>(null)
@@ -1036,6 +1037,13 @@ export default function NewConsultation() {
         setTranscript('')
         setStage('done')
         setProcessingStep(null)
+        // Auto-save as pending with 24h expiry — ID stored for approve/discard
+        consultationIdRef.current = null
+        createPendingConsultation(user?.id ?? '', {
+          recording_duration: recordingDurationRef.current,
+          note_type: noteType,
+          specialty: (specialtyOverride || profile?.specialty) ?? null,
+        }).then(id => { consultationIdRef.current = id })
         return
       } catch (err) {
         if (attempt < MAX_ATTEMPTS - 1) {
@@ -1085,12 +1093,17 @@ export default function NewConsultation() {
     if (!note) return
     setSaving(true)
     try {
-      await saveConsultation(user?.id ?? '', {
-        recording_duration: recordingDurationRef.current,
-        note_type: noteType,
-        status: 'approved',
-        specialty: (specialtyOverride || profile?.specialty) ?? null,
-      })
+      if (consultationIdRef.current) {
+        await approveConsultation(consultationIdRef.current)
+      } else {
+        // Fallback: auto-save didn't complete in time, insert fresh
+        await saveConsultation(user?.id ?? '', {
+          recording_duration: recordingDurationRef.current,
+          note_type: noteType,
+          status: 'approved',
+          specialty: (specialtyOverride || profile?.specialty) ?? null,
+        })
+      }
 
       // Deduct credits for institutional users
       if (profile?.clinica_id) {
@@ -1853,6 +1866,15 @@ export default function NewConsultation() {
               </div>
             )}
 
+            {isSupabaseMode && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-2">
+                <span className="text-amber-500 text-sm flex-shrink-0 mt-0.5">⏰</span>
+                <p className="text-xs text-amber-700 leading-relaxed">
+                  Esta nota se eliminará automáticamente en <span className="font-semibold">24 horas</span> si no es aprobada.
+                </p>
+              </div>
+            )}
+
             {/* Actions */}
             <div className="flex flex-col sm:flex-row gap-3 pb-8">
               <button
@@ -1871,7 +1893,12 @@ export default function NewConsultation() {
                 )}
               </button>
               <button
-                onClick={() => navigate('/dashboard')}
+                onClick={() => {
+                  if (consultationIdRef.current) {
+                    discardConsultation(consultationIdRef.current).catch(() => {})
+                  }
+                  navigate('/dashboard')
+                }}
                 className="flex items-center justify-center gap-2 px-6 py-3.5 text-base font-semibold text-red-600 border-2 border-red-200 rounded-xl hover:bg-red-50 transition-all"
               >
                 <Trash2 size={18} />

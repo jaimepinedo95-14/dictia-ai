@@ -5,6 +5,18 @@ import { useAuth } from '../contexts/AuthContext'
 import { fetchConsultations } from '../lib/db'
 import type { Consultation, NoteType } from '../lib/supabase'
 
+function formatExpiry(expiresAt: string | null | undefined): { text: string; color: string } | null {
+  if (!expiresAt) return null
+  const remaining = new Date(expiresAt).getTime() - Date.now()
+  if (remaining <= 0) return null
+  const hours = Math.floor(remaining / (1000 * 60 * 60))
+  const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60))
+  const text = hours > 0
+    ? `Expira en ${hours}h${minutes > 0 ? ` ${minutes}min` : ''}`
+    : `Expira en ${minutes}min`
+  return { text, color: hours < 2 ? 'text-red-600' : 'text-amber-600' }
+}
+
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('es-CO', {
     day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
@@ -122,11 +134,13 @@ export default function History() {
             {filtered.map((c: Consultation) => {
               const typeMeta = c.note_type ? NOTE_TYPE_META[c.note_type] : null
               const TypeIcon = typeMeta?.Icon ?? Stethoscope
+              const isPending = c.status === 'completed'
+              const expiry = isPending ? formatExpiry(c.expires_at) : null
               return (
-                <div key={c.id} className="bg-white rounded-2xl border border-slate-100 p-5 hover:shadow-sm transition-shadow">
+                <div key={c.id} className={`bg-white rounded-2xl border p-5 hover:shadow-sm transition-shadow ${isPending ? 'border-amber-200' : 'border-slate-100'}`}>
                   <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center flex-shrink-0">
-                      <TypeIcon size={18} className="text-primary-600" />
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isPending ? 'bg-amber-50' : 'bg-primary-50'}`}>
+                      <TypeIcon size={18} className={isPending ? 'text-amber-600' : 'text-primary-600'} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -139,7 +153,13 @@ export default function History() {
                           <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">{c.specialty}</span>
                         )}
                       </div>
-                      <p className="text-xs text-emerald-600 mt-1 font-medium">Nota aprobada</p>
+                      {isPending ? (
+                        <p className={`text-xs mt-1 font-medium ${expiry ? expiry.color : 'text-amber-600'}`}>
+                          Pendiente de aprobación{expiry ? ` — ${expiry.text}` : ''}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-emerald-600 mt-1 font-medium">Nota aprobada</p>
+                      )}
                     </div>
                     <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
                       <div className="flex items-center gap-1 text-xs text-slate-400">

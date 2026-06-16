@@ -112,6 +112,7 @@ export type Consultation = {
   specialty: string | null
   created_at: string
   approved_at: string | null
+  expires_at: string | null
 }
 
 export type PharmaSuggestion = {
