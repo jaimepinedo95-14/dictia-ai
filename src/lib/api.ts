@@ -616,9 +616,23 @@ async function callClaude(systemPrompt: string, userMessage: string, maxTokens =
     throw new Error(`Anthropic error ${res.status}: ${body}`)
   }
 
-  const data = await res.json() as { content: Array<{ text: string }> }
+  const data = await res.json() as {
+    content: Array<{ text: string }>
+    usage: { input_tokens: number; output_tokens: number }
+  }
   const rawText = data.content[0]?.text ?? ''
   console.log('[Dictia] Respuesta raw de Anthropic:', rawText.slice(0, 800))
+  if (data.usage) {
+    const inp = data.usage.input_tokens
+    const out = data.usage.output_tokens
+    console.log('[Dictia] Tokens usados:', {
+      input: inp,
+      output: out,
+      total: inp + out,
+      costo_usd: ((inp * 0.00000025) + (out * 0.00000125)).toFixed(6),
+      costo_cop: Math.round(((inp * 0.00000025) + (out * 0.00000125)) * 4200),
+    })
+  }
   const cleanText = rawText
     .replace(/```json\s*/g, '')
     .replace(/```\s*/g, '')
