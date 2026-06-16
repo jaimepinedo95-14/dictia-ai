@@ -1037,13 +1037,17 @@ export default function NewConsultation() {
         setTranscript('')
         setStage('done')
         setProcessingStep(null)
-        // Auto-save as pending with 24h expiry — ID stored for approve/discard
+        // Auto-save as pending — ID stored for approve/discard
         consultationIdRef.current = null
+        console.log('[Dictia] auto-save iniciando, consultationIdRef reset a null')
         createPendingConsultation(user?.id ?? '', {
           recording_duration: recordingDurationRef.current,
           note_type: noteType,
           specialty: (specialtyOverride || profile?.specialty) ?? null,
-        }).then(id => { consultationIdRef.current = id })
+        }).then(id => {
+          console.log('[Dictia] auto-save completado, consultationIdRef.current =', id)
+          consultationIdRef.current = id
+        })
         return
       } catch (err) {
         if (attempt < MAX_ATTEMPTS - 1) {
@@ -1093,10 +1097,12 @@ export default function NewConsultation() {
     if (!note) return
     setSaving(true)
     try {
-      console.log('[Dictia] handleApprove — user.id:', user?.id, 'pendingId:', consultationIdRef.current)
+      console.log('[Dictia] handleApprove — user.id:', user?.id)
+      console.log('[Dictia] consultationIdRef.current al aprobar:', consultationIdRef.current)
 
       if (consultationIdRef.current) {
         // Pending row exists — UPDATE it (never INSERT, avoids 409)
+        console.log('[Dictia] Intentando UPDATE con id:', consultationIdRef.current)
         const updated = await approveConsultation(consultationIdRef.current)
         console.log('[Dictia] approveConsultation UPDATE rows affected:', updated)
         if (!updated) {
