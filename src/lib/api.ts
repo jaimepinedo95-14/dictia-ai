@@ -981,6 +981,7 @@ Responde ÚNICAMENTE en formato JSON con esta estructura exacta:
 // ─── Live guideline search via web_search_20250305 ────────────────────────────
 // Called on demand by the "Buscar evidencia" button — never during automatic
 // note generation so latency of the main flow is unaffected.
+// Falls back to generateClinicalEvidence if web search is unavailable (beta access).
 export async function searchGuidelinesWithWeb(diagnosis: string): Promise<string> {
   const year = new Date().getFullYear()
   const systemPrompt = `Eres un asistente de apoyo clínico para médicos colombianos. Se te da un diagnóstico. Usa web_search para buscar las guías de manejo actuales más relevantes.
@@ -1006,7 +1007,19 @@ Luego presenta en español claro y conciso, sin introducción:
 
 Máximo 400 palabras. Sé específico y práctico. Si no encuentras guías colombianas, usa NICE, OMS, AHA o Cochrane.`
 
-  return callClaudeWithWebSearch(systemPrompt, `Diagnóstico: ${diagnosis}`)
+  try {
+    return await callClaudeWithWebSearch(systemPrompt, `Diagnóstico: ${diagnosis}`)
+  } catch (webErr) {
+    console.warn('[Dictia] web_search no disponible, usando fallback generateClinicalEvidence:', webErr)
+    const analysis = await generateClinicalEvidence(diagnosis)
+    const sections: string[] = []
+    if (analysis.tratamiento.length)   sections.push(`**Tratamiento de primera línea**\n${analysis.tratamiento.map((t, i) => `${i + 1}. ${t}`).join('\n')}`)
+    if (analysis.criterios.length)     sections.push(`**Criterios diagnósticos**\n${analysis.criterios.map((c, i) => `${i + 1}. ${c}`).join('\n')}`)
+    if (analysis.alertas.length)       sections.push(`**Signos de alarma / cuándo hospitalizar**\n${analysis.alertas.map((a, i) => `${i + 1}. ${a}`).join('\n')}`)
+    if (analysis['paraclínicos'].length) sections.push(`**Paraclínicos recomendados**\n${analysis['paraclínicos'].map((p, i) => `${i + 1}. ${p}`).join('\n')}`)
+    if (analysis.complicaciones.length) sections.push(`**Complicaciones a vigilar**\n${analysis.complicaciones.map((c, i) => `${i + 1}. ${c}`).join('\n')}`)
+    return sections.join('\n\n')
+  }
 }
 
 export function formatNoteForClipboard(note: SoapNote, patientName?: string): string {
