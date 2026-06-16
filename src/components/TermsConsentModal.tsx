@@ -11,8 +11,9 @@ export default function TermsConsentModal() {
   const [acceptedResponsibility, setAcceptedResponsibility] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  // Only show if user is logged in and hasn't accepted terms yet
-  if (!profile || profile.accepted_terms_at) return null
+  // Show only when column exists (accepted_terms_at === null) and user hasn't accepted.
+  // If accepted_terms_at is undefined (column not yet created in Supabase), skip modal.
+  if (!profile || profile.accepted_terms_at !== null) return null
 
   const canAccept = acceptedTerms && acceptedResponsibility
 

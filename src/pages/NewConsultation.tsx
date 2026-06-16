@@ -1093,18 +1093,28 @@ export default function NewConsultation() {
     if (!note) return
     setSaving(true)
     try {
+      console.log('[Dictia] handleApprove — user.id:', user?.id, 'pendingId:', consultationIdRef.current)
+
       let savedViaPending = false
       if (consultationIdRef.current) {
         savedViaPending = await approveConsultation(consultationIdRef.current)
+        console.log('[Dictia] approveConsultation result (rows updated):', savedViaPending)
       }
+
       if (!savedViaPending) {
-        // Either no pending row, or UPDATE was blocked by RLS — always INSERT as fallback
-        await saveConsultation(user?.id ?? '', {
+        // Either no pending row, or UPDATE was blocked — INSERT directly
+        const insertedId = await saveConsultation(user?.id ?? '', {
           recording_duration: recordingDurationRef.current,
           note_type: noteType,
           status: 'approved',
           specialty: (specialtyOverride || profile?.specialty) ?? null,
         })
+        console.log('[Dictia] saveConsultation INSERT result id:', insertedId)
+
+        if (!insertedId) {
+          throw new Error('No se pudo guardar la nota en la base de datos. Verifica tu conexión a internet.')
+        }
+
         // Discard the stale pending row to avoid duplicates
         if (consultationIdRef.current) {
           discardConsultation(consultationIdRef.current).catch(() => {})
@@ -1131,9 +1141,10 @@ export default function NewConsultation() {
       setCopied(true)
       setTimeout(() => navigate('/dashboard'), 1800)
     } catch (err) {
-      console.error('Error al guardar:', err)
-      setCopied(true)
-      setTimeout(() => navigate('/dashboard'), 1800)
+      const msg = err instanceof Error ? err.message : 'Error al guardar la nota'
+      console.error('[Dictia] handleApprove error:', msg)
+      setError(msg)
+      setStage('done')  // stay on note so doctor can retry or copy manually
     } finally {
       setSaving(false)
     }
