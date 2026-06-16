@@ -45,7 +45,7 @@ diagnostico: "Apendicitis aguda"
 planManejo: "1. Hospitalización\n2. NPO (nada por vía oral)\n3. Catéter venoso periférico. Solución salina normal 0.9% 1000cc a 42cc/hora\n4. Acetaminofén 1g IV cada 8 horas\nMetoclopramida 10mg IV cada 8 horas si náuseas\n5. Hemograma completo, PCR, BUN, creatinina, parcial de orina, pruebas de coagulación. Ecografía abdominal\n6. Valoración por cirugía general\n7. Control de signos vitales cada 4 horas. Balance hídrico estricto. Avisar si fiebre mayor a 38.5°C o deterioro clínico"
 
 REGLAS POR SECCIÓN:
-1. motivoConsulta: Cita textual entre comillas del motivo expresado por el paciente, con corrección ortográfica. Ej: "Me duele mucho la garganta desde hace tres días y tengo fiebre."
+1. motivoConsulta: MÁXIMO 1-2 líneas. Solo el síntoma o razón principal de consulta, en palabras del paciente o del médico, con corrección ortográfica. Ej: "Cefalea intensa de inicio súbito" o "Dolor precordial opresivo de 2 horas de evolución". NO es un párrafo ni un resumen — es únicamente el motivo principal.
 2. enfermedadActual: Texto corrido detallado. Incluye: tiempo de evolución exacto, características del síntoma (inicio, localización, intensidad con escala EVA si se mencionó, irradiación, factores modificadores), síntomas asociados, automedicación si aplica, tratamientos previos.
 3. antecedentes: Texto corrido con antecedentes patológicos, quirúrgicos, farmacológicos, alérgicos, familiares y sociales relevantes.
 4. examenFisico: Si se mencionan hallazgos → úsalos, examenFisicoEsDefault: false. Si NO se mencionan → usa el texto estándar abajo, examenFisicoEsDefault: true.

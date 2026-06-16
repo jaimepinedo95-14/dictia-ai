@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Search, Calendar, Clock, Stethoscope, RefreshCw,
-  FileText, Video, Activity, X, Copy, Check, ChevronRight,
+  FileText, Video, Activity, ChevronRight,
 } from 'lucide-react'
 import AppShell from '../components/AppShell'
 import { useAuth } from '../contexts/AuthContext'
@@ -42,188 +43,27 @@ const NOTE_TYPE_META: Record<NoteType, { label: string; color: string; Icon: typ
   traslado:     { label: 'Ing. Traslado',  color: 'bg-amber-50 text-amber-700',     Icon: FileText },
 }
 
-// localStorage fallback for notes approved before DB column was added
-function loadLocalNote(consultationId: string): SoapNote | null {
+function loadLocalNote(id: string): SoapNote | null {
   try {
-    const raw = localStorage.getItem(`dictia_note_${consultationId}`)
+    const raw = localStorage.getItem(`dictia_note_${id}`)
     if (!raw) return null
     const parsed = JSON.parse(raw) as { note: SoapNote; savedAt: number }
     if (Date.now() - parsed.savedAt > 90 * 24 * 60 * 60 * 1000) {
-      localStorage.removeItem(`dictia_note_${consultationId}`)
+      localStorage.removeItem(`dictia_note_${id}`)
       return null
     }
     return parsed.note
   } catch { return null }
 }
 
-function resolveNote(c: Consultation): SoapNote | null {
-  return c.note_content ?? loadLocalNote(c.id)
-}
-
-// ── NoteSection ───────────────────────────────────────────────────────────────
-
-function NoteSection({ title, content }: { title: string; content: string | undefined }) {
-  const [copied, setCopied] = useState(false)
-  if (!content?.trim()) return null
-
-  function copy() {
-    navigator.clipboard.writeText(content!).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
-    })
-  }
-
-  return (
-    <div className="group">
-      <div className="flex items-center justify-between mb-1.5">
-        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">{title}</p>
-        <button
-          onClick={copy}
-          className="opacity-0 group-hover:opacity-100 flex items-center gap-1 text-xs text-slate-400 hover:text-primary-600 transition-all"
-        >
-          {copied ? <><Check size={11} className="text-emerald-500" /> Copiado</> : <><Copy size={11} /> Copiar</>}
-        </button>
-      </div>
-      <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap">{content}</p>
-    </div>
-  )
-}
-
-// ── NoteModal ─────────────────────────────────────────────────────────────────
-
-function NoteModal({
-  consultation,
-  note,
-  onClose,
-}: {
-  consultation: Consultation
-  note: SoapNote | null
-  onClose: () => void
-}) {
-  const [copied, setCopied] = useState(false)
-  const typeMeta = consultation.note_type ? NOTE_TYPE_META[consultation.note_type] : null
-
-  // Close on Escape
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [onClose])
-
-  function copyAll() {
-    if (!note) return
-    const lines = [
-      note.chief_complaint      && `MOTIVO DE CONSULTA:\n${note.chief_complaint}`,
-      note.current_illness      && `\nENFERMEDAD ACTUAL:\n${note.current_illness}`,
-      note.relevant_history     && `\nANTECEDENTES:\n${note.relevant_history}`,
-      note.physical_exam        && `\nEXAMEN FÍSICO:\n${note.physical_exam}`,
-      note.analysis             && `\nANÁLISIS:\n${note.analysis}`,
-      note.diagnosis            && `\nDIAGNÓSTICO:\n${note.diagnosis}`,
-      note.cie10_code           && `CIE-10: ${note.cie10_code} — ${note.cie10_description}`,
-      note.management_plan      && `\nPLAN DE MANEJO:\n${note.management_plan}`,
-      note.patient_instructions && `\nINSTRUCCIONES AL PACIENTE:\n${note.patient_instructions}`,
-    ].filter(Boolean).join('\n')
-    navigator.clipboard.writeText(lines).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    })
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full sm:max-w-2xl bg-white sm:rounded-3xl shadow-2xl flex flex-col max-h-screen sm:max-h-[90vh]">
-
-        {/* Header */}
-        <div className="px-6 pt-6 pb-4 border-b border-slate-100 flex items-start justify-between gap-4 flex-shrink-0">
-          <div>
-            <div className="flex items-center gap-2 flex-wrap mb-1">
-              {typeMeta && (
-                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${typeMeta.color}`}>
-                  {typeMeta.label}
-                </span>
-              )}
-              {consultation.specialty && (
-                <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">
-                  {consultation.specialty}
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-slate-400">{formatDate(consultation.created_at)}</p>
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {note && (
-              <button
-                onClick={copyAll}
-                className="flex items-center gap-1.5 text-sm font-bold bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-xl transition-colors"
-              >
-                {copied ? <><Check size={14} /> Copiado</> : <><Copy size={14} /> Copiar nota completa</>}
-              </button>
-            )}
-            <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
-              <X size={18} className="text-slate-500" />
-            </button>
-          </div>
-        </div>
-
-        {/* Sections */}
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
-          {note ? (
-            <>
-              <NoteSection title="Motivo de consulta"       content={note.chief_complaint} />
-              <NoteSection title="Enfermedad actual"         content={note.current_illness} />
-              <NoteSection title="Antecedentes"              content={note.relevant_history} />
-              <NoteSection title="Examen físico"             content={note.physical_exam} />
-              <NoteSection title="Análisis"                  content={note.analysis} />
-              {note.diagnosis && (
-                <div className="group">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Diagnóstico</p>
-                    <button
-                      onClick={() => navigator.clipboard.writeText(`${note.diagnosis}\nCIE-10: ${note.cie10_code} — ${note.cie10_description}`)}
-                      className="opacity-0 group-hover:opacity-100 flex items-center gap-1 text-xs text-slate-400 hover:text-primary-600 transition-all"
-                    >
-                      <Copy size={11} /> Copiar
-                    </button>
-                  </div>
-                  <p className="text-sm font-semibold text-slate-900">{note.diagnosis}</p>
-                  {note.cie10_code && (
-                    <p className="text-xs text-slate-400 mt-0.5">{note.cie10_code} — {note.cie10_description}</p>
-                  )}
-                </div>
-              )}
-              <NoteSection title="Plan de manejo"            content={note.management_plan} />
-              <NoteSection title="Instrucciones al paciente"  content={note.patient_instructions} />
-              {note.referral_letter && (
-                <NoteSection title="Carta de remisión"        content={note.referral_letter} />
-              )}
-              {note.vital_signs && (
-                <NoteSection title="Signos vitales"           content={note.vital_signs} />
-              )}
-            </>
-          ) : (
-            <div className="text-center py-12 text-slate-400">
-              <FileText size={36} className="mx-auto mb-3 opacity-25" />
-              <p className="font-semibold text-slate-600 text-sm">Nota no disponible en este dispositivo</p>
-              <p className="text-xs mt-2 max-w-xs mx-auto leading-relaxed text-slate-400">
-                Por privacidad, las notas se guardan en este navegador. Si aprobaste esta nota en otro dispositivo o navegador, no es posible recuperarla aquí.
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export default function History() {
   const { user, isSupabaseMode } = useAuth()
+  const navigate = useNavigate()
   const [consultations, setConsultations] = useState<Consultation[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [selected, setSelected] = useState<{ consultation: Consultation; note: SoapNote | null } | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -249,8 +89,9 @@ export default function History() {
     return () => { supabase.removeChannel(channel) }
   }, [user?.id, load])
 
-  function openNote(c: Consultation) {
-    setSelected({ consultation: c, note: resolveNote(c) })
+  function openConsultation(c: Consultation) {
+    const note = (c.note_content as SoapNote | null) ?? loadLocalNote(c.id)
+    navigate(`/historial/${c.id}`, { state: { consultation: c, note } })
   }
 
   const filtered = consultations.filter(c => {
@@ -271,7 +112,9 @@ export default function History() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Historial de consultas</h1>
           <p className="text-slate-500 text-sm mt-1">
-            {loading ? 'Cargando...' : `${filtered.length} consulta${filtered.length !== 1 ? 's' : ''} · ${timeSaved} min ahorrados en documentación`}
+            {loading
+              ? 'Cargando...'
+              : `${filtered.length} consulta${filtered.length !== 1 ? 's' : ''} · ${timeSaved} min ahorrados`}
           </p>
         </div>
 
@@ -341,7 +184,7 @@ export default function History() {
               return (
                 <button
                   key={c.id}
-                  onClick={() => openNote(c)}
+                  onClick={() => openConsultation(c)}
                   className={`w-full text-left bg-white rounded-2xl border p-5 hover:shadow-md transition-all cursor-pointer group ${
                     isPending ? 'border-amber-200' : 'border-slate-100'
                   }`}
@@ -398,14 +241,6 @@ export default function History() {
           </div>
         )}
       </div>
-
-      {selected && (
-        <NoteModal
-          consultation={selected.consultation}
-          note={selected.note}
-          onClose={() => setSelected(null)}
-        />
-      )}
     </AppShell>
   )
 }

@@ -21,6 +21,7 @@ import RegisterPage from './pages/RegisterPage'
 import Dashboard from './pages/Dashboard'
 import NewConsultation from './pages/NewConsultation'
 import History from './pages/History'
+import NoteDetail from './pages/NoteDetail'
 import Patients from './pages/Patients'
 import Billing from './pages/Billing'
 import Settings from './pages/Settings'
@@ -178,6 +179,7 @@ export default function App() {
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/nueva-consulta" element={<ProtectedRoute><NewConsultation /></ProtectedRoute>} />
           <Route path="/historial" element={<ProtectedRoute><History /></ProtectedRoute>} />
+          <Route path="/historial/:id" element={<ProtectedRoute><NoteDetail /></ProtectedRoute>} />
           <Route path="/pacientes" element={<ProtectedRoute><Patients /></ProtectedRoute>} />
           <Route path="/facturacion" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
           <Route path="/configuracion" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
