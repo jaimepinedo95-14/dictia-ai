@@ -3,15 +3,14 @@ import type { SoapNote, PharmaSuggestion, GlosaShield, NoteType } from './supaba
 const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY as string
 const ANTHROPIC_API_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY as string
 
-export const DEFAULT_PHYSICAL_EXAM = `CABEZA: NORMOCEFALO, PUPILAS ISOCORICAS NORMOREACTIVAS A LA LUZ, SIN EVIDENCIA DE NISTAGMO, CONJUNTIVAS NORMOCROMICAS, ESCLERAS ANICTERICAS, NARINAS CON ADECUADA ENTRADA DE AIRE, DE CONFIGURACION NORMAL, MUCOSA ORAL HUMEDA, HIDRATADA, OROFARINGE SIN ALTERACIONES.
-CUELLO: MOVIL NO DOLOROSO A LA PALPACION NI MOVILIZACION, NO SE PALPAN ADENOMEGALIAS NI MASAS.
-TORAX: SIMETRICO, EXPANSIBLE, SIN USO DE MUSCULATURA ACCESORIA, PULMONES CON ADECUADA ENTRADA DE AIRE BILATERAL, RUIDOS RESPIRATORIOS BILATERALES SIN AGREGADOS PATOLOGICOS.
-CARDIACO: RUIDOS CARDIACOS RITMICOS, DE BUEN TONO E INTENSIDAD SIN SOPLOS NI AGREGADOS, LLENADO CAPILAR DISTAL INMEDIATO.
-ABDOMEN: NO DISTENDIDO, PERISTALSIS POSITIVA, EFECTIVA, BLANDO, DEPRESIBLE, NO DOLOROSO A LA PALPACION SIN EVIDENCIA DE SIGNOS DE IRRITACION PERITONEAL, NO SE PALPAN MASAS NI MEGALIAS.
-GENITOURINARIO: PUÑO PERCUSION RENAL BILATERAL NEGATIVA.
-EXTREMIDADES: SIMETRICAS Y EUTROFICAS CON LLENADO CAPILAR DISTAL INMEDIATO, SIN EDEMAS.
-PIEL: INTEGRA SIN LESIONES, NO SE OBSERVA TINTE ICTERICO.
-SNC: ALERTA, CONSCIENTE, ESFERA MENTAL SIN ALTERACIONES, FUERZA MUSCULAR 5/5, SENSIBILIDAD SIMETRICA SIN ALTERACIONES, PARES CRANEALES NORMALES, LENGUAJE SIN ALTERACIONES, SIN SIGNOS MENINGEOS.`
+export const DEFAULT_PHYSICAL_EXAM = `cabeza y cuello: normocéfalo, pupilas isocóricas normorreactivas, conjuntivas normocrómicas, escleras anictéricas, mucosa oral húmeda, cuello móvil sin adenopatías
+tórax y pulmones: simétrico, expansible, sin uso de musculatura accesoria, murmullo vesicular presente bilateral sin agregados
+corazón: ruidos cardíacos rítmicos de buen tono e intensidad, sin soplos ni frotes, llenado capilar distal inmediato
+abdomen: blando, depresible, no doloroso, peristalsis presente, sin masas ni megalias, puño percusión renal bilateral negativa
+extremidades: simétricas y eutróficas, sin edemas, llenado capilar distal inmediato
+neurológico: consciente y orientado, lenguaje normal, fuerza muscular 5/5 en 4 extremidades, sensibilidad conservada`
+
+export const DEFAULT_VITAL_SIGNS = `TA: 120/80 mmHg   FC: 72 lpm   FR: 18 rpm   SatO2: 98%   Temp: 36.5°C`
 
 export const TELEMEDICINE_PHYSICAL_EXAM = `Evaluación física limitada por modalidad telemedicina. Se evaluaron: aspecto general, coloración de piel y mucosas visibles en cámara, signos de dificultad respiratoria (movimientos torácicos, uso de musculatura accesoria), estado neurológico aparente (orientación, lenguaje, respuesta a preguntas). Examen físico presencial pendiente si se requiere para confirmar hallazgos.`
 
@@ -45,13 +44,19 @@ diagnostico: "Apendicitis aguda"
 planManejo: "1. Hospitalización\n2. NPO (nada por vía oral)\n3. Catéter venoso periférico. Solución salina normal 0.9% 1000cc a 42cc/hora\n4. Acetaminofén 1g IV cada 8 horas\nMetoclopramida 10mg IV cada 8 horas si náuseas\n5. Hemograma completo, PCR, BUN, creatinina, parcial de orina, pruebas de coagulación. Ecografía abdominal\n6. Valoración por cirugía general\n7. Control de signos vitales cada 4 horas. Balance hídrico estricto. Avisar si fiebre mayor a 38.5°C o deterioro clínico"
 
 REGLAS POR SECCIÓN:
-1. motivoConsulta: MÁXIMO 1-2 líneas. Solo el síntoma o razón principal de consulta, en palabras del paciente o del médico, con corrección ortográfica. Ej: "Cefalea intensa de inicio súbito" o "Dolor precordial opresivo de 2 horas de evolución". NO es un párrafo ni un resumen — es únicamente el motivo principal.
+1. motivoConsulta: MÁXIMO 1-2 líneas. Reformula como clínico, no transcribas literalmente. Solo el síntoma o razón principal con terminología médica correcta.
+   ✗ INCORRECTO: "El paciente dice que le duele mucho la cabeza desde hace tres días y que le molesta la luz"
+   ✓ CORRECTO: "Cefalea de 3 días de evolución con fotofobia"
+   ✗ INCORRECTO: "Vino porque le duele el pecho y no puede respirar bien"
+   ✓ CORRECTO: "Dolor precordial opresivo con disnea"
+   NO es un párrafo ni un resumen — es únicamente el motivo principal reformulado con lenguaje clínico.
 2. enfermedadActual: Texto corrido detallado. Incluye: tiempo de evolución exacto, características del síntoma (inicio, localización, intensidad con escala EVA si se mencionó, irradiación, factores modificadores), síntomas asociados, automedicación si aplica, tratamientos previos.
 3. antecedentes: Texto corrido con antecedentes patológicos, quirúrgicos, farmacológicos, alérgicos, familiares y sociales relevantes.
-4. examenFisico: Si se mencionan hallazgos → úsalos, examenFisicoEsDefault: false. Si NO se mencionan → usa el texto estándar abajo, examenFisicoEsDefault: true.
+4. signosVitales: SIEMPRE presente. Si el médico mencionó signos vitales → úsalos. Si NO los mencionó → usa los valores normales por defecto: "TA: 120/80 mmHg   FC: 72 lpm   FR: 18 rpm   SatO2: 98%   Temp: 36.5°C". Formato: "TA: X/Y mmHg   FC: X lpm   FR: X rpm   SatO2: X%   Temp: X°C". NUNCA dejar este campo vacío.
+5. examenFisico: Si se mencionan hallazgos → úsalos, examenFisicoEsDefault: false. Si NO se mencionan → usa el texto estándar abajo, examenFisicoEsDefault: true.
    TEXTO ESTÁNDAR (usar si no se detectaron hallazgos):
-   "CABEZA: NORMOCEFALO, PUPILAS ISOCORICAS NORMOREACTIVAS A LA LUZ, SIN EVIDENCIA DE NISTAGMO, CONJUNTIVAS NORMOCROMICAS, ESCLERAS ANICTERICAS, NARINAS CON ADECUADA ENTRADA DE AIRE, DE CONFIGURACION NORMAL, MUCOSA ORAL HUMEDA, HIDRATADA, OROFARINGE SIN ALTERACIONES.\nCUELLO: MOVIL NO DOLOROSO A LA PALPACION NI MOVILIZACION, NO SE PALPAN ADENOMEGALIAS NI MASAS.\nTORAX: SIMETRICO, EXPANSIBLE, SIN USO DE MUSCULATURA ACCESORIA, PULMONES CON ADECUADA ENTRADA DE AIRE BILATERAL, RUIDOS RESPIRATORIOS BILATERALES SIN AGREGADOS PATOLOGICOS.\nCARDIACO: RUIDOS CARDIACOS RITMICOS, DE BUEN TONO E INTENSIDAD SIN SOPLOS NI AGREGADOS, LLENADO CAPILAR DISTAL INMEDIATO.\nABDOMEN: NO DISTENDIDO, PERISTALSIS POSITIVA, EFECTIVA, BLANDO, DEPRESIBLE, NO DOLOROSO A LA PALPACION SIN EVIDENCIA DE SIGNOS DE IRRITACION PERITONEAL, NO SE PALPAN MASAS NI MEGALIAS.\nGENITOURINARIO: PUÑO PERCUSION RENAL BILATERAL NEGATIVA.\nEXTREMIDADES: SIMETRICAS Y EUTROFICAS CON LLENADO CAPILAR DISTAL INMEDIATO, SIN EDEMAS.\nPIEL: INTEGRA SIN LESIONES, NO SE OBSERVA TINTE ICTERICO.\nSNC: ALERTA, CONSCIENTE, ESFERA MENTAL SIN ALTERACIONES, FUERZA MUSCULAR 5/5, SENSIBILIDAD SIMETRICA SIN ALTERACIONES, PARES CRANEALES NORMALES, LENGUAJE SIN ALTERACIONES, SIN SIGNOS MENINGEOS."
-5. analisis: Párrafo en prosa, en tercera persona, usando ÚNICAMENTE lo que el médico dijo en la transcripción. Sin longitud fija — si hay poca información el análisis será corto, si hay más detalle será más completo. Empieza con quién es el paciente y por qué consulta, luego los hallazgos del examen si el médico los mencionó, luego la impresión diagnóstica y la conducta planteada. Todo en un solo párrafo fluido, como una nota clínica real colombiana.
+   "cabeza y cuello: normocéfalo, pupilas isocóricas normorreactivas, conjuntivas normocrómicas, escleras anictéricas, mucosa oral húmeda, cuello móvil sin adenopatías\ntórax y pulmones: simétrico, expansible, sin uso de musculatura accesoria, murmullo vesicular presente bilateral sin agregados\ncorazón: ruidos cardíacos rítmicos de buen tono e intensidad, sin soplos ni frotes, llenado capilar distal inmediato\nabdomen: blando, depresible, no doloroso, peristalsis presente, sin masas ni megalias, puño percusión renal bilateral negativa\nextremidades: simétricas y eutróficas, sin edemas, llenado capilar distal inmediato\nneurológico: consciente y orientado, lenguaje normal, fuerza muscular 5/5 en 4 extremidades, sensibilidad conservada"
+6. analisis: Párrafo en prosa, en tercera persona, usando ÚNICAMENTE lo que el médico dijo en la transcripción. Sin longitud fija — si hay poca información el análisis será corto, si hay más detalle será más completo. Empieza con quién es el paciente y por qué consulta, luego los hallazgos del examen si el médico los mencionó, luego la impresión diagnóstica y la conducta planteada. Todo en un solo párrafo fluido, como una nota clínica real colombiana.
    NUNCA incluir en el análisis:
    - La frase "LIMITACIÓN CRÍTICA" ni ninguna variante similar
    - Listas numeradas o con bullets
@@ -63,14 +68,15 @@ REGLAS POR SECCIÓN:
    - Paréntesis con explicaciones adicionales
    - Texto educativo o académico de cualquier tipo
    Si falta información, simplemente omítela. El médico la completará manualmente.
-6. diagnostico: Preciso y conciso, máximo una línea.
+7. diagnostico: Preciso y conciso, máximo una línea.
    - Si el diagnóstico es claro: escríbelo directamente. Ej: "Hemorragia subaracnoidea"
-   - Si hay duda entre dos diagnósticos: usa "vs". Ej: "Cefalea en trueno: HSA vs migraña basilar"
-   - Nunca más de dos diagnósticos
+   - Si hay duda entre DOS diagnósticos CLÍNICAMENTE RELACIONADOS: usa "vs". Ej: "Cefalea en trueno: HSA vs migraña basilar". SOLO cuando ambas posibilidades son parte del mismo razonamiento diferencial, no para listar cualquier incertidumbre.
+   - Si el diagnóstico no está claro en la transcripción: usa "[síntoma principal] en estudio". Ej: "Dolor torácico en estudio", "Síncope en estudio"
+   - Nunca más de dos diagnósticos en un "vs"
    - Nunca usar "etiología por precisar", "descartar urgentemente X, Y, Z" ni frases similares
-7. codigoCIE10: Código CIE-10 más específico posible.
-8. descripcionCIE10: Descripción oficial del código CIE-10 seleccionado.
-9. planManejo: Incluye SOLO lo que el médico mencionó, en este orden fijo (omite cualquier ítem no mencionado):
+8. codigoCIE10: Código CIE-10 más específico posible.
+9. descripcionCIE10: Descripción oficial del código CIE-10 seleccionado.
+10. planManejo: Incluye SOLO lo que el médico mencionó, en este orden fijo (omite cualquier ítem no mencionado):
    1. Destino del paciente (si aplica): Observación / Hospitalización / Manejo ambulatorio
    2. Dieta (si aplica): Ej: "Dieta blanda", "NPO (nada por vía oral)", "Dieta libre"
    3. Vía venosa y líquidos (si aplica): Ej: "Catéter venoso periférico", "SSN 0.9% 1000cc a 42cc/hora"
@@ -79,9 +85,9 @@ REGLAS POR SECCIÓN:
    6. Interconsultas o valoraciones (si aplica): Ej: "Valoración por neurología"
    7. Indicaciones de enfermería (si aplica): Ej: "Control de signos vitales cada 4 horas", "Balance hídrico estricto"
    El orden es fijo. El contenido viene exclusivamente de la transcripción. Si el médico no mencionó un ítem, no lo pongas.
-10. instruccionesPaciente: Cada instrucción con guión. Lenguaje claro para el paciente. "- [instrucción]\n- ..."
-11. sugerenciasFarmacologicas: Array con 2-3 medicamentos apropiados. Dosis exactas en adultos estándar.
-12. blindajeDocumental: Analiza la nota generada con base en los criterios del Manual Único de Glosas de Colombia. El objetivo es REDUCIR glosas por documentación incompleta, no garantizar aprobación total.
+11. instruccionesPaciente: Cada instrucción con guión. Lenguaje claro para el paciente. "- [instrucción]\n- ..."
+12. sugerenciasFarmacologicas: Array con 2-3 medicamentos apropiados. Dosis exactas en adultos estándar.
+13. blindajeDocumental: Analiza la nota generada con base en los criterios del Manual Único de Glosas de Colombia. El objetivo es REDUCIR glosas por documentación incompleta, no garantizar aprobación total.
 
 CATEGORÍA A — SOPORTE DOCUMENTAL (verifica lo que sí está bien):
 Revisa la nota generada y lista únicamente los criterios que SÍ están correctamente documentados:
@@ -105,6 +111,7 @@ Responde ÚNICAMENTE en formato JSON con esta estructura exacta:
   "motivoConsulta": "",
   "enfermedadActual": "",
   "antecedentes": "",
+  "signosVitales": "TA: 120/80 mmHg   FC: 72 lpm   FR: 18 rpm   SatO2: 98%   Temp: 36.5°C",
   "examenFisico": "",
   "examenFisicoEsDefault": false,
   "analisis": "",
@@ -710,6 +717,7 @@ export async function generateSoapNote(transcript: string, options: GenerateOpti
     chief_complaint: (parsed.motivoConsulta as string) || '',
     current_illness: currentIllness,
     relevant_history: (parsed.antecedentes as string) || '',
+    vital_signs: (parsed.signosVitales as string) || DEFAULT_VITAL_SIGNS,
     physical_exam: physicalExam,
     physical_exam_is_default: isTelemed ? false : physicalExamIsDefault,
     analysis: (parsed.analisis as string) || '',
@@ -1133,6 +1141,9 @@ export function formatNoteForClipboard(note: SoapNote, patientName?: string): st
     '',
     'ANTECEDENTES RELEVANTES',
     note.relevant_history,
+    '',
+    'SIGNOS VITALES',
+    note.vital_signs || DEFAULT_VITAL_SIGNS,
     '',
     note.is_telemedicine
       ? 'EXAMEN FÍSICO (Evaluación por telemedicina — limitada)'

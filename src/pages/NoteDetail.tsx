@@ -4,6 +4,7 @@ import { ArrowLeft, Copy, Check, Clock, AlertTriangle, FileText } from 'lucide-r
 import AppShell from '../components/AppShell'
 import { useAuth } from '../contexts/AuthContext'
 import type { Consultation, SoapNote } from '../lib/supabase'
+import { supabase } from '../lib/supabase'
 import { fetchConsultationById } from '../lib/db'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -47,8 +48,8 @@ function buildFullText(note: SoapNote): string {
   if (note.chief_complaint)      parts.push(`MOTIVO DE CONSULTA\n${note.chief_complaint}`)
   if (note.current_illness)      parts.push(`ENFERMEDAD ACTUAL\n${note.current_illness}`)
   if (note.relevant_history)     parts.push(`ANTECEDENTES\n${note.relevant_history}`)
-  if (note.physical_exam)        parts.push(`EXAMEN FÍSICO\n${note.physical_exam}`)
   if (note.vital_signs)          parts.push(`SIGNOS VITALES\n${note.vital_signs}`)
+  if (note.physical_exam)        parts.push(`EXAMEN FÍSICO\n${note.physical_exam}`)
   if (note.analysis)             parts.push(`ANÁLISIS\n${note.analysis}`)
   if (note.diagnosis)            parts.push(`DIAGNÓSTICO\n${note.diagnosis}${note.cie10_code ? ` (${note.cie10_code})` : ''}`)
   if (note.management_plan)      parts.push(`PLAN DE MANEJO\n${note.management_plan}`)
@@ -158,6 +159,14 @@ export default function NoteDetail() {
       if (local) {
         setNote(local)
         setSource('local')
+        // Silently backfill to Supabase — next open from any device will find it in DB
+        if (isSupabaseMode && user?.id) {
+          supabase.from('consultations')
+            .update({ note_content: local })
+            .eq('id', id as string)
+            .eq('user_id', user.id)
+            .then(() => { /* fire and forget */ })
+        }
         setLoading(false)
         return
       }
@@ -282,10 +291,10 @@ export default function NoteDetail() {
             <NoteSection title="Motivo de consulta"        content={note.chief_complaint} />
             <NoteSection title="Enfermedad actual"          content={note.current_illness} />
             <NoteSection title="Antecedentes"               content={note.relevant_history} />
-            <NoteSection title="Examen físico"              content={note.physical_exam} />
             {note.vital_signs && (
               <NoteSection title="Signos vitales"           content={note.vital_signs} />
             )}
+            <NoteSection title="Examen físico"              content={note.physical_exam} />
             <NoteSection title="Análisis"                   content={note.analysis} />
             <NoteSection title="Plan de manejo"             content={note.management_plan} />
             <NoteSection title="Instrucciones al paciente"  content={note.patient_instructions} />
