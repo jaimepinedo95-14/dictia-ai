@@ -12,6 +12,13 @@ export const DEFAULT_PHYSICAL_EXAM = `- Aspecto general: consciente, alerta, ori
 
 export const DEFAULT_VITAL_SIGNS = `TA: 120/80 mmHg   FC: 72 lpm   FR: 18 rpm   SatO2: 98%   Temp: 36.5°C`
 
+export const DEFAULT_ANTECEDENTES = `- Patológicos: niega
+- Farmacológicos: niega
+- Alergias: niega
+- Quirúrgicos: niega
+- Tóxicos: niega
+- Traumáticos: niega`
+
 export const TELEMEDICINE_PHYSICAL_EXAM = `Evaluación física limitada por modalidad telemedicina. Se evaluaron: aspecto general, coloración de piel y mucosas visibles en cámara, signos de dificultad respiratoria (movimientos torácicos, uso de musculatura accesoria), estado neurológico aparente (orientación, lenguaje, respuesta a preguntas). Examen físico presencial pendiente si se requiere para confirmar hallazgos.`
 
 const TELEMEDICINE_CONSENT = `Consulta realizada por telemedicina. Se realizó evaluación clínica mediante plataforma digital. El paciente consintió la atención virtual. `
@@ -51,7 +58,15 @@ REGLAS POR SECCIÓN:
    ✓ CORRECTO: "Dolor precordial opresivo con disnea"
    NO es un párrafo ni un resumen — es únicamente el motivo principal reformulado con lenguaje clínico.
 2. enfermedadActual: Texto corrido detallado. Incluye: tiempo de evolución exacto, características del síntoma (inicio, localización, intensidad con escala EVA si se mencionó, irradiación, factores modificadores), síntomas asociados, automedicación si aplica, tratamientos previos.
-3. antecedentes: Texto corrido con antecedentes patológicos, quirúrgicos, farmacológicos, alérgicos, familiares y sociales relevantes.
+3. antecedentes: SIEMPRE con todos los ítems en formato de lista con guión. Usa "niega" por defecto en cada ítem. Si el médico menciona algo específico, reemplaza "niega" por lo que dijo. Los ítems no mencionados quedan en "niega".
+   FORMATO FIJO (siempre todos estos ítems, en este orden):
+   "- Patológicos: niega\n- Farmacológicos: niega\n- Alergias: niega\n- Quirúrgicos: niega\n- Tóxicos: niega\n- Traumáticos: niega"
+   EJEMPLOS:
+   - Médico menciona "hipertensión arterial" → Patológicos: hipertensión arterial
+   - Médico menciona "alérgico a la penicilina" → Alergias: penicilina
+   - Médico menciona "cirugía de rodilla" → Quirúrgicos: cirugía de rodilla
+   - Médico menciona "fuma" o "toma licor" → Tóxicos: tabaquismo activo / alcoholismo
+   NUNCA dejar este campo vacío ni omitir ítems.
 4. signosVitales: SIEMPRE presente. Si el médico mencionó signos vitales → úsalos. Si NO los mencionó → usa los valores normales por defecto: "TA: 120/80 mmHg   FC: 72 lpm   FR: 18 rpm   SatO2: 98%   Temp: 36.5°C". Formato: "TA: X/Y mmHg   FC: X lpm   FR: X rpm   SatO2: X%   Temp: X°C". NUNCA dejar este campo vacío.
 5. examenFisico: Si se mencionan hallazgos → úsalos, examenFisicoEsDefault: false. Si NO se mencionan → usa el texto estándar abajo, examenFisicoEsDefault: true.
    TEXTO ESTÁNDAR (usar si no se detectaron hallazgos):
@@ -717,7 +732,7 @@ export async function generateSoapNote(transcript: string, options: GenerateOpti
     note_type: isTelemed ? 'telemedicina' : 'ingreso',
     chief_complaint: (parsed.motivoConsulta as string) || '',
     current_illness: currentIllness,
-    relevant_history: (parsed.antecedentes as string) || '',
+    relevant_history: (parsed.antecedentes as string) || DEFAULT_ANTECEDENTES,
     vital_signs: (parsed.signosVitales as string) || DEFAULT_VITAL_SIGNS,
     physical_exam: physicalExam,
     physical_exam_is_default: isTelemed ? false : physicalExamIsDefault,
