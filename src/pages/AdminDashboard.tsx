@@ -85,13 +85,19 @@ export default function AdminDashboard() {
     : users
 
   // ── Actions ───────────────────────────────────────────────────────────────────
+  async function reloadUsers() {
+    const updated = await fetchAllUsers()
+    setUsers(updated)
+    const map: Record<string, string> = {}
+    updated.forEach(u => { map[u.id] = u.plan_seleccionado ?? 'standard' })
+    setPlanMap(map)
+  }
+
   async function applyPlan(userId: string) {
     const plan = planMap[userId] ?? 'standard'
     setBusyId(userId)
     await updateUserPlan(userId, plan)
-    setUsers(prev => prev.map(u => u.id === userId
-      ? { ...u, plan_seleccionado: plan, plan, subscription_status: 'active' }
-      : u))
+    await reloadUsers()
     Analytics.planActivado(plan, userId)
     setBusyId(null)
     flashSaved(userId)
@@ -101,9 +107,7 @@ export default function AdminDashboard() {
     setPlanMap(prev => ({ ...prev, [userId]: plan }))
     setBusyId(userId + '_plan')
     await updateUserPlan(userId, plan)
-    setUsers(prev => prev.map(u => u.id === userId
-      ? { ...u, plan_seleccionado: plan, plan, subscription_status: 'active' }
-      : u))
+    await reloadUsers()
     Analytics.planActivado(plan, userId)
     setBusyId(null)
     flashSaved(userId + '_plan')
@@ -112,9 +116,7 @@ export default function AdminDashboard() {
   async function applyFreeAccess(userId: string) {
     setBusyId(userId + '_free')
     await grantFreeAccess(userId)
-    setUsers(prev => prev.map(u => u.id === userId
-      ? { ...u, plan: 'gratis', plan_seleccionado: 'gratis', subscription_status: 'active', consultations_limit: 999999 }
-      : u))
+    await reloadUsers()
     setBusyId(null)
     flashSaved(userId + '_free')
   }
@@ -123,18 +125,14 @@ export default function AdminDashboard() {
     if (!confirm('¿Bloquear este usuario?')) return
     setBusyId(userId + '_block')
     await blockUser(userId)
-    setUsers(prev => prev.map(u => u.id === userId
-      ? { ...u, subscription_status: 'cancelled', consultations_limit: 0 }
-      : u))
+    await reloadUsers()
     setBusyId(null)
   }
 
   async function applyReactivate(userId: string) {
     setBusyId(userId + '_react')
     await reactivateUser(userId)
-    setUsers(prev => prev.map(u => u.id === userId
-      ? { ...u, subscription_status: 'active', consultations_limit: 250 }
-      : u))
+    await reloadUsers()
     setBusyId(null)
     flashSaved(userId + '_react')
   }
@@ -143,7 +141,7 @@ export default function AdminDashboard() {
     if (!confirm(`¿Eliminar permanentemente a ${name}? No se puede deshacer.`)) return
     setBusyId(userId + '_del')
     await deleteUser(userId)
-    setUsers(prev => prev.filter(u => u.id !== userId))
+    await reloadUsers()
     setBusyId(null)
   }
 

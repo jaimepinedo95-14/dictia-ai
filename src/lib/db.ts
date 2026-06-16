@@ -97,29 +97,52 @@ export async function approveConsultation(
 
   // Try writing note_content alongside status (note_content column must exist)
   if (noteContent !== undefined && noteContent !== null) {
+    console.log('[Dictia] Guardando note_content en approveConsultation:', JSON.stringify(noteContent).substring(0, 200))
     const { data, error } = await supabase
       .from('consultations')
       .update({ status: 'approved', approved_at: approvedAt, note_content: noteContent })
       .eq('id', consultationId)
       .select('id')
 
+    console.log('[Dictia] UPDATE result (con note_content):', { rowsAffected: data?.length ?? 0, error: error?.message ?? null })
+
     if (!error) {
-      console.log('[Dictia] approveConsultation: note_content saved to DB ✓')
-      return (data?.length ?? 0) > 0
+      if ((data?.length ?? 0) > 0) {
+        console.log('[Dictia] approveConsultation: note_content saved to DB ✓')
+        return true
+      }
+      // 0 rows affected — ID not found or RLS blocked it
+      console.warn('[Dictia] approveConsultation: 0 rows affected. consultationId:', consultationId)
+      return false
     }
-    console.warn('[Dictia] approveConsultation: note_content write failed, retrying without it:', error.message)
+    console.warn('[Dictia] approveConsultation: note_content write failed:', error.message, '— retrying status-only')
   }
 
-  // Fallback: update status only (note_content column may not exist, or noteContent was null)
+  // Fallback: update status only (note_content column may not exist)
   const { data, error } = await supabase
     .from('consultations')
     .update({ status: 'approved', approved_at: approvedAt })
     .eq('id', consultationId)
     .select('id')
 
+  console.log('[Dictia] UPDATE result (status only fallback):', { rowsAffected: data?.length ?? 0, error: error?.message ?? null })
+
   if (error) {
-    console.error('[Dictia] approveConsultation UPDATE error:', error)
+    console.error('[Dictia] approveConsultation fallback UPDATE error:', error)
     return false
+  }
+
+  // Status written. Now try note_content in a separate call (column may have just been created)
+  if (noteContent && (data?.length ?? 0) > 0) {
+    const { error: ncErr } = await supabase
+      .from('consultations')
+      .update({ note_content: noteContent })
+      .eq('id', consultationId)
+    if (ncErr) {
+      console.error('[Dictia] note_content separate write failed:', ncErr.message, '— note only in localStorage')
+    } else {
+      console.log('[Dictia] note_content written in separate call ✓')
+    }
   }
 
   return (data?.length ?? 0) > 0
