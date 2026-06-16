@@ -3,12 +3,12 @@ import type { SoapNote, PharmaSuggestion, GlosaShield, NoteType } from './supaba
 const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY as string
 const ANTHROPIC_API_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY as string
 
-export const DEFAULT_PHYSICAL_EXAM = `cabeza y cuello: normocéfalo, pupilas isocóricas normorreactivas, conjuntivas normocrómicas, escleras anictéricas, mucosa oral húmeda, cuello móvil sin adenopatías
-tórax y pulmones: simétrico, expansible, sin uso de musculatura accesoria, murmullo vesicular presente bilateral sin agregados
-corazón: ruidos cardíacos rítmicos de buen tono e intensidad, sin soplos ni frotes, llenado capilar distal inmediato
-abdomen: blando, depresible, no doloroso, peristalsis presente, sin masas ni megalias, puño percusión renal bilateral negativa
-extremidades: simétricas y eutróficas, sin edemas, llenado capilar distal inmediato
-neurológico: consciente y orientado, lenguaje normal, fuerza muscular 5/5 en 4 extremidades, sensibilidad conservada`
+export const DEFAULT_PHYSICAL_EXAM = `- Aspecto general: consciente, alerta, orientado, en buenas condiciones generales.
+- Cabeza y cuello: normocéfalo, pupilas isocóricas normorreactivas, mucosas húmedas, sin adenopatías.
+- Tórax y pulmones: expansión torácica simétrica, murmullo vesicular conservado, sin ruidos sobreagregados. Ruidos cardíacos rítmicos, sin soplos.
+- Abdomen: blando, depresible, sin dolor a la palpación, ruidos intestinales presentes, sin visceromegalias.
+- Extremidades: sin edemas, pulsos periféricos presentes y simétricos.
+- Neurológico: sin déficit motor ni sensitivo, marcha conservada.`
 
 export const DEFAULT_VITAL_SIGNS = `TA: 120/80 mmHg   FC: 72 lpm   FR: 18 rpm   SatO2: 98%   Temp: 36.5°C`
 
@@ -55,7 +55,8 @@ REGLAS POR SECCIÓN:
 4. signosVitales: SIEMPRE presente. Si el médico mencionó signos vitales → úsalos. Si NO los mencionó → usa los valores normales por defecto: "TA: 120/80 mmHg   FC: 72 lpm   FR: 18 rpm   SatO2: 98%   Temp: 36.5°C". Formato: "TA: X/Y mmHg   FC: X lpm   FR: X rpm   SatO2: X%   Temp: X°C". NUNCA dejar este campo vacío.
 5. examenFisico: Si se mencionan hallazgos → úsalos, examenFisicoEsDefault: false. Si NO se mencionan → usa el texto estándar abajo, examenFisicoEsDefault: true.
    TEXTO ESTÁNDAR (usar si no se detectaron hallazgos):
-   "cabeza y cuello: normocéfalo, pupilas isocóricas normorreactivas, conjuntivas normocrómicas, escleras anictéricas, mucosa oral húmeda, cuello móvil sin adenopatías\ntórax y pulmones: simétrico, expansible, sin uso de musculatura accesoria, murmullo vesicular presente bilateral sin agregados\ncorazón: ruidos cardíacos rítmicos de buen tono e intensidad, sin soplos ni frotes, llenado capilar distal inmediato\nabdomen: blando, depresible, no doloroso, peristalsis presente, sin masas ni megalias, puño percusión renal bilateral negativa\nextremidades: simétricas y eutróficas, sin edemas, llenado capilar distal inmediato\nneurológico: consciente y orientado, lenguaje normal, fuerza muscular 5/5 en 4 extremidades, sensibilidad conservada"
+   "- Aspecto general: consciente, alerta, orientado, en buenas condiciones generales.\n- Cabeza y cuello: normocéfalo, pupilas isocóricas normorreactivas, mucosas húmedas, sin adenopatías.\n- Tórax y pulmones: expansión torácica simétrica, murmullo vesicular conservado, sin ruidos sobreagregados. Ruidos cardíacos rítmicos, sin soplos.\n- Abdomen: blando, depresible, sin dolor a la palpación, ruidos intestinales presentes, sin visceromegalias.\n- Extremidades: sin edemas, pulsos periféricos presentes y simétricos.\n- Neurológico: sin déficit motor ni sensitivo, marcha conservada."
+   REGLA: Si el médico menciona hallazgos de corazón → van dentro de "Tórax y pulmones", NO como sección separada. Cuando el médico mencione hallazgos, reemplaza el valor normal de esa sección. Las secciones no mencionadas mantienen sus valores normales.
 6. analisis: Párrafo en prosa, en tercera persona, usando ÚNICAMENTE lo que el médico dijo en la transcripción. Sin longitud fija — si hay poca información el análisis será corto, si hay más detalle será más completo. Empieza con quién es el paciente y por qué consulta, luego los hallazgos del examen si el médico los mencionó, luego la impresión diagnóstica y la conducta planteada. Todo en un solo párrafo fluido, como una nota clínica real colombiana.
    NUNCA incluir en el análisis:
    - La frase "LIMITACIÓN CRÍTICA" ni ninguna variante similar
