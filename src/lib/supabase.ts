@@ -113,6 +113,7 @@ export type Consultation = {
   created_at: string
   approved_at: string | null
   expires_at: string | null
+  note_content: SoapNote | null
 }
 
 export type PharmaSuggestion = {

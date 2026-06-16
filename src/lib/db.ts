@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from './supabase'
-import type { Consultation, NoteType } from './supabase'
+import type { Consultation, NoteType, SoapNote } from './supabase'
 
 export type SavingsStats = {
   today: number
@@ -19,6 +19,7 @@ type SaveConsultationInput = {
   note_type?: NoteType | null
   status: 'approved' | 'discarded'
   specialty?: string | null
+  note_content?: SoapNote | null
 }
 
 export async function saveConsultation(
@@ -36,6 +37,7 @@ export async function saveConsultation(
       status: data.status,
       specialty: data.specialty ?? null,
       approved_at: data.status === 'approved' ? new Date().toISOString() : null,
+      note_content: data.note_content ?? null,
     })
     .select('id')
     .single()
@@ -50,47 +52,39 @@ export async function saveConsultation(
 
 export async function createPendingConsultation(
   userId: string,
-  data: { recording_duration: number; note_type?: NoteType | null; specialty?: string | null }
+  data: { recording_duration: number; note_type?: NoteType | null; specialty?: string | null; note_content?: SoapNote | null }
 ): Promise<string | null> {
   if (!isSupabaseConfigured || !userId) return null
 
+  const base = {
+    user_id: userId,
+    recording_duration: data.recording_duration,
+    note_type: data.note_type ?? null,
+    status: 'completed',
+    specialty: data.specialty ?? null,
+  }
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
 
+  // Try full insert (expires_at + note_content)
   const { data: row, error } = await supabase
     .from('consultations')
-    .insert({
-      user_id: userId,
-      recording_duration: data.recording_duration,
-      note_type: data.note_type ?? null,
-      status: 'completed',
-      specialty: data.specialty ?? null,
-      expires_at: expiresAt,
-    })
-    .select('id')
-    .single()
-
+    .insert({ ...base, expires_at: expiresAt, note_content: data.note_content ?? null })
+    .select('id').single()
   if (!error) return (row as { id: string }).id
 
-  // Fallback: expires_at column doesn't exist yet
-  console.warn('[Dictia] createPendingConsultation: expires_at missing, inserting without it')
+  // Fallback 1: without expires_at, keep note_content
   const { data: row2, error: err2 } = await supabase
     .from('consultations')
-    .insert({
-      user_id: userId,
-      recording_duration: data.recording_duration,
-      note_type: data.note_type ?? null,
-      status: 'completed',
-      specialty: data.specialty ?? null,
-    })
-    .select('id')
-    .single()
+    .insert({ ...base, note_content: data.note_content ?? null })
+    .select('id').single()
+  if (!err2) return (row2 as { id: string }).id
 
-  if (err2) {
-    console.error('Error al guardar consulta pendiente (fallback):', err2)
-    return null
-  }
-
-  return (row2 as { id: string }).id
+  // Fallback 2: bare minimum (neither expires_at nor note_content — columns may not exist)
+  console.warn('[Dictia] createPendingConsultation: falling back to bare insert')
+  const { data: row3, error: err3 } = await supabase
+    .from('consultations').insert(base).select('id').single()
+  if (err3) { console.error('Error al guardar consulta pendiente:', err3); return null }
+  return (row3 as { id: string }).id
 }
 
 export async function approveConsultation(consultationId: string): Promise<boolean> {
@@ -131,10 +125,10 @@ export async function fetchConsultations(
 
   const now = new Date().toISOString()
 
-  // Try with expires_at column (available after SQL migration)
+  // Try full query (expires_at + note_content)
   const { data, error } = await supabase
     .from('consultations')
-    .select('id, user_id, recording_duration, note_type, status, specialty, created_at, approved_at, expires_at')
+    .select('id, user_id, recording_duration, note_type, status, specialty, created_at, approved_at, expires_at, note_content')
     .eq('user_id', userId)
     .neq('status', 'discarded')
     .or(`expires_at.is.null,expires_at.gt.${now}`)
@@ -143,9 +137,21 @@ export async function fetchConsultations(
 
   if (!error) return (data ?? []) as Consultation[]
 
-  // Fallback: expires_at column doesn't exist yet — run the SQL migration in Supabase
-  console.warn('[Dictia] fetchConsultations: expires_at column missing, using fallback query')
+  // Fallback 1: without expires_at filter, keep note_content
+  console.warn('[Dictia] fetchConsultations: expires_at missing, trying without filter')
   const { data: data2, error: err2 } = await supabase
+    .from('consultations')
+    .select('id, user_id, recording_duration, note_type, status, specialty, created_at, approved_at, note_content')
+    .eq('user_id', userId)
+    .neq('status', 'discarded')
+    .order('created_at', { ascending: false })
+    .limit(limit)
+
+  if (!err2) return (data2 ?? []).map(row => ({ ...row, expires_at: null })) as Consultation[]
+
+  // Fallback 2: bare query (neither expires_at nor note_content)
+  console.warn('[Dictia] fetchConsultations: falling back to bare query')
+  const { data: data3, error: err3 } = await supabase
     .from('consultations')
     .select('id, user_id, recording_duration, note_type, status, specialty, created_at, approved_at')
     .eq('user_id', userId)
@@ -153,12 +159,8 @@ export async function fetchConsultations(
     .order('created_at', { ascending: false })
     .limit(limit)
 
-  if (err2) {
-    console.error('Error al cargar consultas:', err2)
-    return []
-  }
-
-  return (data2 ?? []).map(row => ({ ...row, expires_at: null })) as Consultation[]
+  if (err3) { console.error('Error al cargar consultas:', err3); return [] }
+  return (data3 ?? []).map(row => ({ ...row, expires_at: null, note_content: null })) as Consultation[]
 }
 
 export async function getMonthlyConsultationCount(userId: string): Promise<number> {

@@ -13,8 +13,10 @@
     "@anthropic-ai/sdk": "^0.104.1",
     "@supabase/supabase-js": "^2.108.1",
     "clsx": "^2.1.0",
+    "crisp-sdk-web": "^1.1.2",
     "groq-sdk": "^1.2.1",
     "lucide-react": "^0.303.0",
+    "posthog-js": "^1.387.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.21.0"

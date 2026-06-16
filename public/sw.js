@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dictia-v1'
+const CACHE_NAME = 'dictia-v2'
 
 // Static assets to cache immediately on install
 const PRECACHE_ASSETS = [
