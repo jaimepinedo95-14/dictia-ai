@@ -87,14 +87,33 @@ export async function createPendingConsultation(
   return (row3 as { id: string }).id
 }
 
-export async function approveConsultation(consultationId: string): Promise<boolean> {
+export async function approveConsultation(
+  consultationId: string,
+  noteContent?: SoapNote | null
+): Promise<boolean> {
   if (!isSupabaseConfigured || !consultationId) return false
 
-  // Do NOT set expires_at here — column may not exist yet.
-  // expires_at cleanup happens separately once the SQL migration is confirmed.
+  const approvedAt = new Date().toISOString()
+
+  // Try writing note_content alongside status (note_content column must exist)
+  if (noteContent !== undefined && noteContent !== null) {
+    const { data, error } = await supabase
+      .from('consultations')
+      .update({ status: 'approved', approved_at: approvedAt, note_content: noteContent })
+      .eq('id', consultationId)
+      .select('id')
+
+    if (!error) {
+      console.log('[Dictia] approveConsultation: note_content saved to DB ✓')
+      return (data?.length ?? 0) > 0
+    }
+    console.warn('[Dictia] approveConsultation: note_content write failed, retrying without it:', error.message)
+  }
+
+  // Fallback: update status only (note_content column may not exist, or noteContent was null)
   const { data, error } = await supabase
     .from('consultations')
-    .update({ status: 'approved', approved_at: new Date().toISOString() })
+    .update({ status: 'approved', approved_at: approvedAt })
     .eq('id', consultationId)
     .select('id')
 
@@ -104,6 +123,34 @@ export async function approveConsultation(consultationId: string): Promise<boole
   }
 
   return (data?.length ?? 0) > 0
+}
+
+export async function fetchConsultationById(
+  userId: string,
+  consultationId: string
+): Promise<Consultation | null> {
+  if (!isSupabaseConfigured || !userId || !consultationId) return null
+
+  // Try full select with note_content
+  const { data, error } = await supabase
+    .from('consultations')
+    .select('id, user_id, recording_duration, note_type, status, specialty, created_at, approved_at, expires_at, note_content')
+    .eq('id', consultationId)
+    .eq('user_id', userId)
+    .single()
+
+  if (!error && data) return data as Consultation
+
+  // Fallback: without columns that may not exist
+  const { data: data2, error: err2 } = await supabase
+    .from('consultations')
+    .select('id, user_id, recording_duration, note_type, status, specialty, created_at, approved_at')
+    .eq('id', consultationId)
+    .eq('user_id', userId)
+    .single()
+
+  if (err2) { console.error('[Dictia] fetchConsultationById error:', err2); return null }
+  return { ...data2, expires_at: null, note_content: null } as Consultation
 }
 
 export async function discardConsultation(consultationId: string): Promise<void> {

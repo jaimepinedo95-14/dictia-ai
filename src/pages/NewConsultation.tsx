@@ -1185,7 +1185,7 @@ export default function NewConsultation() {
       if (consultationIdRef.current) {
         // Pending row exists — UPDATE it (never INSERT, avoids 409)
         console.log('[Dictia] Intentando UPDATE con id:', consultationIdRef.current)
-        const updated = await approveConsultation(consultationIdRef.current)
+        const updated = await approveConsultation(consultationIdRef.current, note)
         console.log('[Dictia] approveConsultation UPDATE rows affected:', updated)
         if (!updated) {
           throw new Error('No se pudo aprobar la nota (error al actualizar en base de datos). Contacta soporte.')
