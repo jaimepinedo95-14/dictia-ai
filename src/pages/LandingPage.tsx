@@ -90,10 +90,9 @@ function FaqItem({ q, a }: { q: string; a: string }) {
 export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly')
-  const [showDemoModal, setShowDemoModal] = useState(false)
-  const [demoForm, setDemoForm] = useState({ nombre: '', institucion: '', ciudad: '', medicos: '', whatsapp: '' })
-  const [demoSubmitting, setDemoSubmitting] = useState(false)
-  const [demoSuccess, setDemoSuccess] = useState(false)
+  const [leadContact, setLeadContact] = useState('')
+  const [leadSubmitting, setLeadSubmitting] = useState(false)
+  const [leadSuccess, setLeadSuccess] = useState(false)
   const [cookieBannerDismissed, setCookieBannerDismissed] = useState(
     () => localStorage.getItem('dictia_cookies_accepted') === '1'
   )
@@ -103,18 +102,18 @@ export default function LandingPage() {
     setCookieBannerDismissed(true)
   }
 
-  async function handleDemoSubmit(e: React.FormEvent) {
+  async function handleLeadSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setDemoSubmitting(true)
+    setLeadSubmitting(true)
     await saveDemoRequest({
-      nombre_completo: demoForm.nombre,
-      nombre_institucion: `${demoForm.institucion} — ${demoForm.ciudad}`,
-      email_institucional: demoForm.whatsapp,
-      numero_medicos: demoForm.medicos ? parseInt(demoForm.medicos) : null,
-      telefono: demoForm.ciudad,
+      nombre_completo: 'Lead institucional',
+      nombre_institucion: 'Por confirmar',
+      email_institucional: leadContact.trim(),
+      numero_medicos: null,
+      telefono: leadContact.trim(),
     })
-    setDemoSubmitting(false)
-    setDemoSuccess(true)
+    setLeadSubmitting(false)
+    setLeadSuccess(true)
   }
 
   return (
@@ -478,10 +477,10 @@ export default function LandingPage() {
             })}
           </div>
           <p className="text-center text-slate-500 text-sm mt-10">
-            ¿Eres una clínica u hospital? Tenemos planes B2B por historia clínica generada, con panel administrativo y control por sede.{' '}
-            <button onClick={() => { setShowDemoModal(true); setDemoSuccess(false) }} className="text-primary-600 hover:underline font-semibold">
-              Solicitar información B2B →
-            </button>
+            ¿Eres una clínica u hospital?{' '}
+            <a href="#clinicas" className="text-primary-600 hover:underline font-semibold">
+              Conoce nuestra solución institucional →
+            </a>
           </p>
         </div>
       </section>
@@ -557,159 +556,43 @@ export default function LandingPage() {
 
       {/* ── B2B / CLÍNICAS ── */}
       <section id="clinicas" className="py-24 bg-slate-900 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-14">
-            <span className="inline-block text-xs font-bold tracking-widest uppercase text-primary-400 mb-4 bg-primary-500/10 px-4 py-1.5 rounded-full border border-primary-500/20">
-              Para instituciones
-            </span>
-            <h2 className="text-4xl font-black text-white mb-4">Solución para clínicas y hospitales</h2>
-            <p className="text-slate-400 text-lg max-w-2xl mx-auto">
-              Paga solo por las historias clínicas generadas. Sin usuarios inactivos, sin costos fijos innecesarios.
-            </p>
-          </div>
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <span className="inline-block text-xs font-bold tracking-widest uppercase text-primary-400 mb-4 bg-primary-500/10 px-4 py-1.5 rounded-full border border-primary-500/20">
+            Próximamente
+          </span>
+          <h2 className="text-4xl font-black text-white mb-4">Solución para clínicas y hospitales</h2>
+          <p className="text-slate-400 text-lg mb-10 leading-relaxed">
+            Estamos preparando nuestra solución institucional: panel administrativo, control de médicos por sede y pago por nota generada. Si te interesa para tu clínica u hospital, déjanos tu contacto y te avisamos primero.
+          </p>
 
-          <div className="grid sm:grid-cols-3 gap-4 mb-14">
-            {[
-              { icon: '🏥', title: 'Control total', desc: 'Panel jerárquico con Super Admin, Admin por sede y médicos asignados. Tú decides quién accede y desde dónde.' },
-              { icon: '💳', title: 'Precio justo', desc: 'Modelo por historia clínica generada. No pagas por médicos que no están atendiendo.' },
-              { icon: '🔒', title: 'Seguridad por sede', desc: 'Restricción por IP por sede física. Solo accede el médico que está en tu clínica.' },
-            ].map(({ icon, title, desc }) => (
-              <div key={title} className="bg-slate-800/60 rounded-2xl p-6 border border-slate-700/60 hover:border-slate-600 transition-colors">
-                <span className="text-2xl mb-3 block">{icon}</span>
-                <h3 className="font-bold text-white mb-2">{title}</h3>
-                <p className="text-slate-400 text-sm leading-relaxed">{desc}</p>
+          {leadSuccess ? (
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center">
+                <span className="text-emerald-400 text-2xl">✓</span>
               </div>
-            ))}
-          </div>
-
-          <div className="text-center">
-            <button
-              onClick={() => { setShowDemoModal(true); setDemoSuccess(false) }}
-              className="inline-flex items-center gap-2 bg-primary-600 hover:bg-primary-500 text-white font-bold px-8 py-4 rounded-2xl text-lg transition-all hover:shadow-lg hover:shadow-primary-500/20"
-            >
-              Solicitar demo para mi institución <ArrowRight size={18} />
-            </button>
-            <p className="text-slate-500 text-sm mt-3">Respondemos en menos de 24 horas · Sin compromiso</p>
-          </div>
+              <p className="text-emerald-400 font-semibold">¡Listo! Te avisamos cuando esté disponible.</p>
+            </div>
+          ) : (
+            <form onSubmit={handleLeadSubmit} className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
+              <input
+                type="text"
+                required
+                value={leadContact}
+                onChange={e => setLeadContact(e.target.value)}
+                placeholder="Email o WhatsApp"
+                className="flex-1 bg-slate-800 border border-slate-700 text-white placeholder-slate-500 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+              />
+              <button
+                type="submit"
+                disabled={leadSubmitting || !leadContact.trim()}
+                className="bg-primary-600 hover:bg-primary-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold px-6 py-3 rounded-xl text-sm transition-colors whitespace-nowrap"
+              >
+                {leadSubmitting ? 'Guardando...' : 'Me interesa'}
+              </button>
+            </form>
+          )}
         </div>
       </section>
-
-      {/* ── DEMO MODAL ── */}
-      {showDemoModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowDemoModal(false)}>
-          <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" />
-          <div
-            className="relative bg-white rounded-3xl shadow-2xl w-full max-w-lg p-8 z-10"
-            onClick={e => e.stopPropagation()}
-          >
-            <button
-              onClick={() => setShowDemoModal(false)}
-              className="absolute top-4 right-4 p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
-            >
-              <X size={18} />
-            </button>
-
-            {demoSuccess ? (
-              <div className="text-center py-8">
-                <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <CheckCircle size={32} className="text-emerald-500" />
-                </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-2">¡Solicitud recibida!</h3>
-                <p className="text-slate-500">Gracias. Le contactaremos en menos de 24 horas.</p>
-                <button
-                  onClick={() => setShowDemoModal(false)}
-                  className="mt-6 inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold px-6 py-3 rounded-xl text-sm transition-colors"
-                >
-                  Cerrar
-                </button>
-              </div>
-            ) : (
-              <>
-                <div className="mb-6">
-                  <h3 className="text-2xl font-black text-slate-900">Solicitar información</h3>
-                  <p className="text-slate-500 text-sm mt-1">Te contactaremos en menos de 24 horas.</p>
-                </div>
-                <form onSubmit={handleDemoSubmit} className="space-y-4">
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="label">Nombre completo</label>
-                      <input
-                        type="text"
-                        value={demoForm.nombre}
-                        onChange={e => setDemoForm(p => ({ ...p, nombre: e.target.value }))}
-                        placeholder="Dr. Juan Pérez"
-                        className="input-field"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="label">Clínica u hospital</label>
-                      <input
-                        type="text"
-                        value={demoForm.institucion}
-                        onChange={e => setDemoForm(p => ({ ...p, institucion: e.target.value }))}
-                        placeholder="Clínica San Rafael"
-                        className="input-field"
-                        required
-                      />
-                    </div>
-                  </div>
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="label">Ciudad y país</label>
-                      <input
-                        type="text"
-                        value={demoForm.ciudad}
-                        onChange={e => setDemoForm(p => ({ ...p, ciudad: e.target.value }))}
-                        placeholder="Bogotá, Colombia"
-                        className="input-field"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="label">Número aproximado de médicos</label>
-                      <select
-                        value={demoForm.medicos}
-                        onChange={e => setDemoForm(p => ({ ...p, medicos: e.target.value }))}
-                        className="input-field"
-                        required
-                      >
-                        <option value="">Seleccionar</option>
-                        <option value="5">1–10 médicos</option>
-                        <option value="20">11–30 médicos</option>
-                        <option value="65">31–100 médicos</option>
-                        <option value="150">Más de 100</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="label">WhatsApp o email de contacto</label>
-                    <input
-                      type="text"
-                      value={demoForm.whatsapp}
-                      onChange={e => setDemoForm(p => ({ ...p, whatsapp: e.target.value }))}
-                      placeholder="+57 300 000 0000 o admin@clinica.com"
-                      className="input-field"
-                      required
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={demoSubmitting}
-                    className="w-full flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 text-white font-bold py-3.5 rounded-2xl text-sm transition-colors mt-2 disabled:opacity-60"
-                  >
-                    {demoSubmitting ? (
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <>Solicitar información <ArrowRight size={16} /></>
-                    )}
-                  </button>
-                </form>
-              </>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* ── FOOTER ── */}
       <footer className="bg-slate-950 text-slate-400 py-16">
