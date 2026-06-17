@@ -66,18 +66,10 @@ export default function Logo({ variant = 'dark', size = 'md' }: Props) {
         d="M93.25,106.5 L98.45,106.5 L103.65,101.3 L108.85,106.5 L114.05,131.2 L119.25,68.8 L124.45,116.9 L129.65,106.5 L134.85,100 L140.05,106.5"
         stroke="#E8744A" strokeWidth="3.9" strokeLinecap="round" strokeLinejoin="round" fill="none"
       />
-      {/* Wordmark */}
+      {/* Wordmark — Dictia + AI compacto, misma tipografía, solo color diferente */}
       <text x="178" y="128" fontFamily="Inter, 'Helvetica Neue', Arial, sans-serif"
-        fontSize="88" fontWeight="800" letterSpacing="-3" fill="#16213A">
-        Dictia
-      </text>
-      {/* AI mini bars + text */}
-      <rect x="526" y="68" width="9" height="18" rx="4.5" fill="#E8744A"/>
-      <rect x="540" y="62" width="9" height="30" rx="4.5" fill="#E8744A"/>
-      <rect x="554" y="68" width="9" height="18" rx="4.5" fill="#E8744A"/>
-      <text x="572" y="96" fontFamily="Inter, 'Helvetica Neue', Arial, sans-serif"
-        fontSize="56" fontWeight="800" letterSpacing="-1" fill="#E8744A">
-        AI
+        fontSize="88" fontWeight="800" letterSpacing="-3">
+        <tspan fill="#16213A">Dictia</tspan><tspan fill="#E8744A"> AI</tspan>
       </text>
     </svg>
   )
