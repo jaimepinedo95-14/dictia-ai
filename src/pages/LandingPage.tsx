@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Mic, FileText, CheckCircle, Shield,
@@ -87,12 +87,28 @@ function FaqItem({ q, a }: { q: string; a: string }) {
   )
 }
 
+const HERO_IMAGES = ['/hero-1.jpg', '/hero-2.jpg', '/hero-3.jpg']
+
 export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly')
   const [leadContact, setLeadContact] = useState('')
   const [leadSubmitting, setLeadSubmitting] = useState(false)
   const [leadSuccess, setLeadSuccess] = useState(false)
+  const [heroIndex, setHeroIndex] = useState(0)
+  const [heroPrev, setHeroPrev] = useState<number | null>(null)
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setHeroIndex(i => {
+        const next = (i + 1) % HERO_IMAGES.length
+        setHeroPrev(i)
+        setTimeout(() => setHeroPrev(null), 700)
+        return next
+      })
+    }, 5000)
+    return () => clearInterval(timer)
+  }, [])
   const [cookieBannerDismissed, setCookieBannerDismissed] = useState(
     () => localStorage.getItem('dictia_cookies_accepted') === '1'
   )
@@ -183,41 +199,89 @@ export default function LandingPage() {
       </header>
 
       {/* ── HERO ── */}
-      <section className="pt-32 pb-24 bg-white">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <section className="pt-28 pb-16 md:pt-32 md:pb-24 bg-white overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
 
-          <div className="inline-flex items-center gap-2 bg-slate-50 border border-slate-200 text-slate-600 text-xs font-semibold px-4 py-2 rounded-full mb-10">
-            <Globe size={12} className="text-primary-600" />
-            Para médicos latinoamericanos
+            {/* ── LEFT: copy ── */}
+            <div className="flex-1 min-w-0 text-center lg:text-left">
+              <div className="inline-flex items-center gap-2 bg-slate-50 border border-slate-200 text-slate-600 text-xs font-semibold px-4 py-2 rounded-full mb-8">
+                <Globe size={12} className="text-primary-600" />
+                Para médicos latinoamericanos
+              </div>
+
+              <h1 className="text-5xl sm:text-6xl lg:text-[68px] xl:text-[76px] font-black text-slate-900 leading-[1.05] tracking-tight mb-6">
+                Tu consulta,<br />
+                <span style={{ color: '#E8744A' }}>documentada</span><br />
+                en segundos.
+              </h1>
+
+              <p className="text-lg sm:text-xl text-slate-500 leading-relaxed max-w-xl mx-auto lg:mx-0 mb-8">
+                Los médicos pierden entre 4 y 8 minutos escribiendo cada nota clínica. Con 20 pacientes al día, son más de 2 horas de papeleo. Dictia las elimina.
+              </p>
+
+              {/* Trust badges */}
+              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-x-6 gap-y-2 text-sm text-slate-500 mb-10">
+                <span className="flex items-center gap-1.5"><CheckCircle size={14} className="text-emerald-500 flex-shrink-0" /> Sin compromisos</span>
+                <span className="flex items-center gap-1.5"><CheckCircle size={14} className="text-emerald-500 flex-shrink-0" /> Cancela cuando quieras</span>
+                <span className="flex items-center gap-1.5"><CheckCircle size={14} className="text-emerald-500 flex-shrink-0" /> Cero datos de pacientes guardados</span>
+              </div>
+
+              {/* CTA buttons */}
+              <div className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
+                <Link
+                  to="/registro"
+                  className="inline-flex items-center justify-center gap-2 text-white font-bold px-8 py-4 rounded-2xl text-base transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+                  style={{ backgroundColor: '#E8744A' }}
+                  onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#d9663c')}
+                  onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#E8744A')}
+                >
+                  Empieza gratis — 10 notas <ArrowRight size={18} />
+                </Link>
+                <a href="#como-funciona" className="inline-flex items-center justify-center gap-2 bg-white border border-slate-200 hover:border-slate-300 text-slate-700 font-semibold px-8 py-4 rounded-2xl text-base transition-colors">
+                  <Play size={16} style={{ color: '#E8744A' }} />
+                  Ver cómo funciona
+                </a>
+              </div>
+            </div>
+
+            {/* ── RIGHT: rotating image ── */}
+            <div className="w-full lg:w-[44%] flex-shrink-0">
+              <div className="relative w-full aspect-[4/3] lg:aspect-[3/4] rounded-3xl overflow-hidden shadow-2xl bg-slate-100">
+                {/* Previous image (fading out) */}
+                {heroPrev !== null && (
+                  <img
+                    key={`prev-${heroPrev}`}
+                    src={HERO_IMAGES[heroPrev]}
+                    alt=""
+                    className="absolute inset-0 w-full h-full object-cover"
+                    style={{ animation: 'heroFadeOut 0.7s ease forwards' }}
+                  />
+                )}
+                {/* Current image (fading in) */}
+                <img
+                  key={`curr-${heroIndex}`}
+                  src={HERO_IMAGES[heroIndex]}
+                  alt="Médico atendiendo a su paciente"
+                  className="absolute inset-0 w-full h-full object-cover"
+                  style={{ animation: 'heroFadeIn 0.7s ease forwards' }}
+                />
+                {/* Dot indicators */}
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                  {HERO_IMAGES.map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => { setHeroPrev(heroIndex); setHeroIndex(i); setTimeout(() => setHeroPrev(null), 700) }}
+                      className="w-2 h-2 rounded-full transition-all duration-300"
+                      style={{ backgroundColor: i === heroIndex ? '#E8744A' : 'rgba(255,255,255,0.6)' }}
+                      aria-label={`Imagen ${i + 1}`}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+
           </div>
-
-          <h1 className="text-5xl sm:text-6xl lg:text-[80px] font-black text-slate-900 leading-[1.05] tracking-tight mb-7">
-            Tu consulta,<br />
-            <span className="text-primary-600">documentada</span><br />
-            en segundos.
-          </h1>
-
-          <p className="text-xl text-slate-500 leading-relaxed max-w-2xl mx-auto mb-10">
-            Los médicos pierden entre 4 y 8 minutos escribiendo cada nota clínica. Con 20 pacientes al día, son más de 2 horas de papeleo. Dictia las elimina.
-          </p>
-
-          <div className="flex flex-col sm:flex-row gap-3 justify-center mb-14">
-            <Link to="/registro" className="inline-flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 text-white font-bold px-8 py-4 rounded-2xl text-base transition-colors shadow-lg shadow-primary-200">
-              Empieza gratis — 10 notas de prueba gratis <ArrowRight size={18} />
-            </Link>
-            <a href="#como-funciona" className="inline-flex items-center justify-center gap-2 bg-white border border-slate-200 hover:border-slate-300 text-slate-700 font-semibold px-8 py-4 rounded-2xl text-base transition-colors">
-              <Play size={16} className="text-primary-600" />
-              Ver cómo funciona
-            </a>
-          </div>
-
-          {/* Trust row */}
-          <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm text-slate-400">
-            <span className="flex items-center gap-1.5"><CheckCircle size={14} className="text-emerald-500" /> Sin compromisos</span>
-            <span className="flex items-center gap-1.5"><CheckCircle size={14} className="text-emerald-500" /> Cancela cuando quieras</span>
-            <span className="flex items-center gap-1.5"><CheckCircle size={14} className="text-emerald-500" /> Cero datos de pacientes guardados</span>
-          </div>
-
         </div>
       </section>
 
