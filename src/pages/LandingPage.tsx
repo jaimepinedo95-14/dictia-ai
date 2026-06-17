@@ -400,7 +400,7 @@ export default function LandingPage() {
                 }`}
               >
                 Anual
-                <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold">-20%</span>
+                <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold">-10%</span>
               </button>
             </div>
           </div>
@@ -408,7 +408,7 @@ export default function LandingPage() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
             {PLANS.map((plan) => {
               const displayPrice = billingCycle === 'annual' && plan.price > 0
-                ? Math.round(plan.price * 0.8)
+                ? Math.round(plan.price * 0.9)
                 : plan.price
               return (
                 <div
@@ -441,10 +441,10 @@ export default function LandingPage() {
                         {billingCycle === 'annual' && plan.price > 0 && (
                           <>
                             <p className={`text-xs mt-0.5 ${plan.highlight ? 'text-primary-200' : 'text-emerald-600'}`}>
-                              Total anual ${Math.round(plan.price * 0.8 * 12).toLocaleString('es-CO')} COP
+                              Total anual ${Math.round(plan.price * 0.9 * 12).toLocaleString('es-CO')} COP
                             </p>
                             <span className={`inline-block text-xs font-bold mt-1 px-2 py-0.5 rounded-full ${plan.highlight ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-700'}`}>
-                              Ahorras 2 meses
+                              Ahorra 10%
                             </span>
                           </>
                         )}
