@@ -1,0 +1,18 @@
+<svg width="700" height="180" viewBox="0 0 700 180" xmlns="http://www.w3.org/2000/svg">
+  <rect x="20" y="30" width="140" height="140" rx="30" fill="#16213A"/>
+  <rect x="39.95" y="101.3" width="6.5" height="10.4" rx="3.25" fill="#E8744A"/>
+  <rect x="51.65" y="96.1" width="6.5" height="20.8" rx="3.25" fill="#E8744A"/>
+  <rect x="63.35" y="90.9" width="6.5" height="31.2" rx="3.25" fill="#E8744A"/>
+  <rect x="75.05" y="96.1" width="6.5" height="20.8" rx="3.25" fill="#E8744A"/>
+  <rect x="86.75" y="101.3" width="6.5" height="10.4" rx="3.25" fill="#E8744A"/>
+  <path d="M93.25,106.5 L98.45,106.5 L103.65,101.3 L108.85,106.5 L114.05,131.2 L119.25,68.8 L124.45,116.9 L129.65,106.5 L134.85,100 L140.05,106.5"
+        stroke="#E8744A" stroke-width="3.9" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+  <text x="210" y="125" font-family="'Helvetica Neue', Arial, sans-serif" font-size="80" font-weight="800" letter-spacing="-2" fill="#16213A">Dictia</text>
+
+  <rect x="525" y="71" width="10" height="18" rx="5" fill="#E8744A"/>
+  <rect x="540" y="65" width="10" height="30" rx="5" fill="#E8744A"/>
+  <rect x="555" y="71" width="10" height="18" rx="5" fill="#E8744A"/>
+
+  <text x="580" y="95" font-family="'Helvetica Neue', Arial, sans-serif" font-size="52" font-weight="800" letter-spacing="-1" fill="#E8744A">AI</text>
+</svg>
