@@ -96,7 +96,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const sidebar = (
     <div className="flex flex-col h-full">
-      <div className="p-5 border-b border-slate-100">
+      <div className="px-5 py-4 border-b border-slate-100">
         <Logo size="md" />
       </div>
 
