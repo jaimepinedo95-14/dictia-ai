@@ -178,6 +178,10 @@ export async function deductClinicCredit(clinicaId: string, amount: number, desc
       clinica_id: clinicaId, tipo: 'consumo', creditos: amount, descripcion,
     })
   }
+  // Increment monthly usage counter
+  const { data: cur } = await supabase.from('clinicas').select('hc_used_this_month').eq('id', clinicaId).single()
+  const curMonth = (cur as { hc_used_this_month?: number } | null)?.hc_used_this_month ?? 0
+  await supabase.from('clinicas').update({ hc_used_this_month: curMonth + amount }).eq('id', clinicaId)
   return true
 }
 

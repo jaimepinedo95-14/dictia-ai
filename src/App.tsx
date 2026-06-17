@@ -34,6 +34,8 @@ import OnboardingPlan from './pages/OnboardingPlan'
 import OnboardingCard from './pages/OnboardingCard'
 import SubscriptionCancelled from './pages/SubscriptionCancelled'
 import SubscriptionExpired from './pages/SubscriptionExpired'
+import AdminB2BLogin from './pages/AdminB2B/AdminB2BLogin'
+import AdminB2BDashboard from './pages/AdminB2B/AdminB2BDashboard'
 
 function IpBlockScreen() {
   const { signOut } = useAuth()
@@ -153,44 +155,70 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+// Route guard for B2B portal — checks localStorage session only (no Supabase auth context needed)
+function B2BRoute({ children }: { children: React.ReactNode }) {
+  const session = localStorage.getItem('adminB2BSession')
+  if (!session) return <Navigate to="/admin-b2b/login" replace />
+  return <>{children}</>
+}
+
+// Separates B2B portal from main app so AuthProvider doesn't interfere with B2B auth
+function AppRouter() {
+  const location = useLocation()
+
+  if (location.pathname.startsWith('/admin-b2b')) {
+    return (
+      <Routes>
+        <Route path="/admin-b2b/login" element={<AdminB2BLogin />} />
+        <Route path="/admin-b2b/dashboard" element={<B2BRoute><AdminB2BDashboard /></B2BRoute>} />
+        <Route path="/admin-b2b/*" element={<Navigate to="/admin-b2b/login" replace />} />
+      </Routes>
+    )
+  }
+
+  return (
+    <AuthProvider>
+      <PwaInstallBanner />
+      <TermsConsentModal />
+      <Routes>
+        {/* Public */}
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+        <Route path="/registro" element={<PublicRoute><RegisterPage /></PublicRoute>} />
+        <Route path="/privacidad" element={<PrivacyPage />} />
+        <Route path="/terminos" element={<TermsPage />} />
+
+        {/* Onboarding — logged in but subscription pending */}
+        <Route path="/onboarding/plan" element={<ProtectedRoute><OnboardingPlan /></ProtectedRoute>} />
+        <Route path="/onboarding/tarjeta" element={<ProtectedRoute><OnboardingCard /></ProtectedRoute>} />
+
+        {/* Subscription status screens */}
+        <Route path="/subscription/cancelado" element={<ProtectedRoute><SubscriptionCancelled /></ProtectedRoute>} />
+        <Route path="/subscription/vencido" element={<ProtectedRoute><SubscriptionExpired /></ProtectedRoute>} />
+
+        {/* Main app */}
+        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/nueva-consulta" element={<ProtectedRoute><NewConsultation /></ProtectedRoute>} />
+        <Route path="/historial" element={<ProtectedRoute><History /></ProtectedRoute>} />
+        <Route path="/historial/:id" element={<ProtectedRoute><NoteDetail /></ProtectedRoute>} />
+        <Route path="/pacientes" element={<ProtectedRoute><Patients /></ProtectedRoute>} />
+        <Route path="/facturacion" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
+        <Route path="/configuracion" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+        <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+        <Route path="/admin/super" element={<AdminRoute><SuperAdmin /></AdminRoute>} />
+        <Route path="/superadmin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+        <Route path="/admin/clinica" element={<AdminRoute><ClinicAdmin /></AdminRoute>} />
+
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </AuthProvider>
+  )
+}
+
 export default function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <PwaInstallBanner />
-        <TermsConsentModal />
-        <Routes>
-          {/* Public */}
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
-          <Route path="/registro" element={<PublicRoute><RegisterPage /></PublicRoute>} />
-          <Route path="/privacidad" element={<PrivacyPage />} />
-          <Route path="/terminos" element={<TermsPage />} />
-
-          {/* Onboarding — logged in but subscription pending */}
-          <Route path="/onboarding/plan" element={<ProtectedRoute><OnboardingPlan /></ProtectedRoute>} />
-          <Route path="/onboarding/tarjeta" element={<ProtectedRoute><OnboardingCard /></ProtectedRoute>} />
-
-          {/* Subscription status screens */}
-          <Route path="/subscription/cancelado" element={<ProtectedRoute><SubscriptionCancelled /></ProtectedRoute>} />
-          <Route path="/subscription/vencido" element={<ProtectedRoute><SubscriptionExpired /></ProtectedRoute>} />
-
-          {/* Main app */}
-          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/nueva-consulta" element={<ProtectedRoute><NewConsultation /></ProtectedRoute>} />
-          <Route path="/historial" element={<ProtectedRoute><History /></ProtectedRoute>} />
-          <Route path="/historial/:id" element={<ProtectedRoute><NoteDetail /></ProtectedRoute>} />
-          <Route path="/pacientes" element={<ProtectedRoute><Patients /></ProtectedRoute>} />
-          <Route path="/facturacion" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
-          <Route path="/configuracion" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-          <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
-          <Route path="/admin/super" element={<AdminRoute><SuperAdmin /></AdminRoute>} />
-          <Route path="/superadmin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
-          <Route path="/admin/clinica" element={<AdminRoute><ClinicAdmin /></AdminRoute>} />
-
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </AuthProvider>
+      <AppRouter />
     </BrowserRouter>
   )
 }

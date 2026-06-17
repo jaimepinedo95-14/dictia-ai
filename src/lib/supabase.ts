@@ -80,6 +80,7 @@ export type Clinica = {
   modulos_activos: string[]
   activa: boolean
   created_at: string
+  hc_used_this_month?: number
 }
 
 export type CreditTransaction = {
