@@ -3,7 +3,7 @@ type Props = {
   size?: 'sm' | 'md' | 'lg'
 }
 
-const HEIGHTS: Record<string, number> = { sm: 24, md: 32, lg: 42 }
+const HEIGHTS: Record<string, number> = { sm: 24, md: 44, lg: 52 }
 
 // Icon mark — the bars + ECG waveform inside the rounded square
 function IconMark({ size, light = false }: { size: number; light?: boolean }) {
