@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import Logo from '../components/Logo'
 
-const LAST_UPDATED = '13 de junio de 2025'
+const LAST_UPDATED = '17 de junio de 2026'
 const CONTACT_EMAIL = 'legal@dictia.health'
 
 export default function TermsPage() {
@@ -23,11 +23,35 @@ export default function TermsPage() {
 
         <Section title="1. Descripción del servicio">
           <p>
-            Dictia AI es una plataforma de documentación médica asistida por inteligencia artificial que permite a médicos transcribir consultas y generar historias clínicas estructuradas en formato SOAP con codificación CIE-10. El servicio está disponible en <strong>dictia.health</strong>.
+            Dictia AI es un <strong>asistente de dictado médico</strong> (escriba clínico digital) que permite a médicos grabar o dictar una consulta y obtener un <strong>borrador de nota clínica estructurada</strong> en formato SOAP con codificación CIE-10. El servicio está disponible en <strong>dictia.health</strong>.
           </p>
           <p className="mt-3">
-            Dictia es una herramienta de asistencia a la documentación. <strong>No es un dispositivo médico, no emite diagnósticos clínicos, y no reemplaza el juicio clínico del médico.</strong> El médico es el único responsable de revisar, aprobar y utilizar el contenido generado.
+            Dictia es exclusivamente una herramienta de apoyo a la documentación. <strong>No es un dispositivo médico, no emite diagnósticos clínicos, y no reemplaza el juicio clínico del médico.</strong> El médico es el único responsable de revisar, corregir, aprobar y utilizar el borrador generado.
           </p>
+          <p className="mt-3">
+            <strong>Dictia NO es un sistema de historia clínica electrónica (HCE/EHR).</strong> No almacena, gestiona ni custodia historias clínicas. El borrador generado por Dictia debe ser incorporado, corregido y resguardado por el médico o la institución en el sistema de historia clínica oficial que corresponda, conforme a lo establecido en la <strong>Resolución 1995 de 1999 del Ministerio de Salud de Colombia</strong> y las normas equivalentes del país de ejercicio del profesional.
+          </p>
+        </Section>
+
+        <Section title="1A. Lo que Dictia NO es">
+          <div className="bg-red-50 border border-red-100 rounded-xl p-4 text-sm text-red-800 leading-relaxed">
+            <p className="font-semibold mb-2">Para evitar cualquier confusión, Dictia NO es ninguna de las siguientes cosas:</p>
+            <ul className="space-y-1.5">
+              {[
+                'Un sistema de historia clínica electrónica (HCE/EHR): no almacena ni administra la historia clínica oficial del paciente.',
+                'Un dispositivo médico: no está clasificado como software médico (SaMD) bajo ninguna normativa vigente, dado que no toma decisiones diagnósticas ni terapéuticas.',
+                'Un repositorio clínico: los borradores de notas NO permanecen en los servidores de Dictia después de ser aprobados por el médico.',
+                'Un sustituto del criterio clínico: el médico es quien diagnostica, prescribe y toma decisiones. Dictia solo redacta.',
+                'Un garante de la exactitud clínica: los borradores generados por IA pueden contener errores y deben ser revisados antes de cualquier uso.',
+                'Un sistema de prescripción electrónica ni de autorización de servicios ante EPS o aseguradoras.',
+              ].map(item => (
+                <li key={item} className="flex items-start gap-2">
+                  <span className="text-red-500 flex-shrink-0 font-bold mt-0.5">✕</span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         </Section>
 
         <Section title="2. Elegibilidad y registro">
@@ -45,8 +69,8 @@ export default function TermsPage() {
             {[
               'Es el único responsable del tratamiento de datos de salud de sus pacientes, conforme a la legislación aplicable en su país.',
               'Debe contar con el consentimiento informado de sus pacientes para el uso de herramientas de documentación asistida por IA en la consulta.',
-              'Debe revisar y aprobar toda nota generada por Dictia antes de incorporarla a la historia clínica oficial del paciente.',
-              'Es responsable de la custodia, almacenamiento y compartición de las notas aprobadas, dado que Dictia no las almacena.',
+              'Debe revisar, corregir si es necesario, y aprobar toda nota borrador generada por Dictia antes de incorporarla a la historia clínica oficial del paciente en el sistema HCE o soporte documental de su institución, conforme a la Resolución 1995 de 1999 del Ministerio de Salud de Colombia y normas equivalentes.',
+              'Es el único responsable de la custodia, integridad, conservación y acceso de la historia clínica oficial, así como de los borradores aprobados, dado que Dictia no almacena historias clínicas.',
               'No debe introducir voluntariamente en la consulta datos de pacientes que no sean estrictamente necesarios para la documentación médica.',
               'Debe usar Dictia de conformidad con la ética médica y las normas de su colegio o asociación profesional.',
               'Es responsable del cumplimiento normativo frente a sus pacientes y autoridades sanitarias en lo que respecta al uso de IA en la consulta médica.',

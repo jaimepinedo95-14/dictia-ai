@@ -50,14 +50,14 @@ const SECTIONS_AFTER_DX: SoapSection[] = [
   { key: 'patient_instructions', label: 'Instrucciones al paciente', icon: '📝', multiline: true, placeholder: 'No registrado' },
 ]
 
-const EVOLUTION_SECTIONS: SoapSection[] = [
-  { key: 'current_illness', label: 'Evolución clínica', icon: '📋', multiline: true, placeholder: 'Estado clínico del día', alwaysShow: true },
-  { key: 'active_diagnoses', label: 'Diagnóstico(s) activos', icon: '🔬', multiline: true, placeholder: 'Sin diagnósticos registrados' },
-  { key: 'vital_signs', label: 'Signos vitales', icon: '📊', multiline: false, placeholder: 'TA: _/_ mmHg · FC: _ lpm · FR: _ rpm · T°: _°C · SatO2: _%' },
-  { key: 'physical_exam', label: 'Examen físico del día', icon: '🩺', multiline: true, placeholder: 'Hallazgos relevantes del día', alwaysShow: true },
-  { key: 'labs', label: 'Laboratorios y paraclínicos', icon: '🧪', multiline: true, placeholder: 'Sin resultados del día' },
-  { key: 'analysis', label: 'Análisis del día', icon: '🧠', multiline: true, placeholder: 'No registrado' },
-  { key: 'management_plan', label: 'Plan del día', icon: '📋', multiline: true, placeholder: 'Sin plan registrado' },
+
+const EVOLUTION_SOAP_SECTIONS_BEFORE: SoapSection[] = [
+  { key: 'chief_complaint', label: 'Evolución del día', icon: '🎯', multiline: false, placeholder: 'Nota de evolución', alwaysShow: true },
+  { key: 'current_illness', label: 'Estado clínico actual', icon: '📋', multiline: true, placeholder: 'Estado del paciente hoy' },
+  { key: 'relevant_history', label: 'Antecedentes relevantes', icon: '📁', multiline: true, placeholder: 'No se mencionaron antecedentes' },
+  { key: 'vital_signs', label: 'Signos vitales', icon: '📊', multiline: false, placeholder: 'TA: _/_ mmHg · FC: _ lpm · FR: _ rpm · SatO2: _% · T: _°C', alwaysShow: true },
+  { key: 'physical_exam', label: 'Examen físico del día', icon: '🩺', multiline: true, placeholder: 'Hallazgos del día', alwaysShow: true },
+  { key: 'analysis', label: 'Análisis clínico', icon: '🧠', multiline: true, placeholder: 'No registrado' },
 ]
 
 const TRANSFER_SECTIONS: SoapSection[] = [
@@ -675,7 +675,7 @@ const NOTE_TYPE_OPTIONS: NoteTypeOption[] = [
   {
     type: 'ingreso',
     label: 'HC de ingreso',
-    sublabel: 'Historia clínica completa SOAP',
+    sublabel: 'Historia clínica completa',
     icon: '📋',
     color: 'primary',
     credit: '1 crédito',
@@ -747,6 +747,8 @@ export default function NewConsultation() {
   const [backgroundNotice, setBackgroundNotice] = useState<'continued' | 'paused' | null>(null)
   const [recordingMode, setRecordingMode] = useState<RecordingMode>('consulta')
   const [emptyTranscript, setEmptyTranscript] = useState(false)
+  const [textInputMode, setTextInputMode] = useState<'grabar' | 'escribir'>('grabar')
+  const [textChangesInput, setTextChangesInput] = useState('')
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -1158,6 +1160,12 @@ export default function NewConsultation() {
     await processTranscript(t)
   }
 
+  async function handleGenerateFromText() {
+    if (!textChangesInput.trim()) return
+    setStage('processing')
+    await processTranscript(textChangesInput.trim())
+  }
+
   function startEdit(key: keyof SoapNote) {
     setEditingKey(key)
     setEditValue((note?.[key] as string) ?? '')
@@ -1470,7 +1478,7 @@ export default function NewConsultation() {
                     type="text"
                     value={patientName}
                     onChange={e => setPatientName(e.target.value)}
-                    placeholder="Ej: Paciente 001 o Juan P."
+                    placeholder="Ej: Paciente 001 o Cama 4B"
                     className="input-field text-center"
                   />
                 </div>
@@ -1537,8 +1545,61 @@ export default function NewConsultation() {
               </div>
             )}
 
+            {/* Mode toggle for continuity notes (evolution / traslado) */}
+            {stage === 'idle' && (noteType === 'evolucion' || noteType === 'traslado') && (
+              <div className="flex rounded-xl border border-slate-200 overflow-hidden w-full">
+                <button
+                  onClick={() => setTextInputMode('grabar')}
+                  className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
+                    textInputMode === 'grabar'
+                      ? 'bg-violet-600 text-white'
+                      : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  🎙️ Grabar cambios
+                </button>
+                <button
+                  onClick={() => setTextInputMode('escribir')}
+                  className={`flex-1 py-2.5 text-sm font-medium transition-colors border-l border-slate-200 ${
+                    textInputMode === 'escribir'
+                      ? 'bg-violet-600 text-white'
+                      : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  ✏️ Escribir cambios
+                </button>
+              </div>
+            )}
+
+            {/* Text input panel for continuity notes */}
+            {stage === 'idle' && textInputMode === 'escribir' && (noteType === 'evolucion' || noteType === 'traslado') && (
+              <div className="w-full space-y-3">
+                <textarea
+                  value={textChangesInput}
+                  onChange={e => setTextChangesInput(e.target.value)}
+                  placeholder={
+                    noteType === 'evolucion'
+                      ? 'Escribe aquí los cambios del día: estado del paciente, signos vitales, hallazgos del examen, ajustes al plan...'
+                      : 'Escribe aquí el estado al ingreso: hallazgos, signos vitales, impresión diagnóstica, plan en el nuevo servicio...'
+                  }
+                  className="w-full px-4 py-3 rounded-2xl border-2 border-violet-200 bg-white text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent transition-all text-sm leading-relaxed resize-none"
+                  rows={8}
+                  maxLength={10000}
+                />
+                <button
+                  onClick={handleGenerateFromText}
+                  disabled={!textChangesInput.trim()}
+                  className="w-full btn-primary py-3 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Generar nota
+                </button>
+              </div>
+            )}
+
             {/* Recording button */}
-            <div className="flex flex-col items-center gap-6">
+            <div className={`flex flex-col items-center gap-6 ${
+              stage === 'idle' && textInputMode === 'escribir' && (noteType === 'evolucion' || noteType === 'traslado') ? 'hidden' : ''
+            }`}>
               {stage === 'processing' ? (
                 <div className="w-28 h-28 rounded-full bg-primary-50 border-4 border-primary-200 flex items-center justify-center">
                   <div className="w-10 h-10 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" />
@@ -1682,7 +1743,9 @@ export default function NewConsultation() {
                   <span className="font-medium text-primary-700">
                     {processingStep === 'transcribing'
                       ? 'Procesando audio...'
-                      : noteType === 'evolucion' ? 'Generando nota de evolución...' : 'Generando historia clínica SOAP...'}
+                      : noteType === 'evolucion' ? 'Generando nota de evolución...'
+                      : noteType === 'traslado' ? 'Generando nota de traslado...'
+                      : 'Generando historia clínica...'}
                   </span>
                 </div>
               </div>
@@ -1781,33 +1844,18 @@ export default function NewConsultation() {
               </details>
             )}
 
-            {/* ── EVOLUTION NOTE LAYOUT ── */}
-            {(isEvolution || isTransfer) ? (
+            {/* ── TRANSFER NOTE LAYOUT ── */}
+            {isTransfer ? (
               <>
-                {/* Header */}
-                <div className={`text-white rounded-2xl p-5 ${isTransfer ? 'bg-amber-600' : 'bg-violet-600'}`}>
-                  {isTransfer ? (
-                    <>
-                      <p className="text-amber-200 text-xs font-bold uppercase tracking-wider mb-1">🚑 Ingreso por traslado</p>
-                      <h2 className="text-xl font-bold">Nota de ingreso por traslado</h2>
-                      {note.evolution_date && (
-                        <p className="text-amber-200 text-sm mt-1">{note.evolution_date}</p>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-violet-200 text-xs font-bold uppercase tracking-wider mb-1">🏥 Nota de evolución</p>
-                      <h2 className="text-xl font-bold">Día {note.hospitalization_day} de hospitalización</h2>
-                      {note.evolution_date && (
-                        <p className="text-violet-200 text-sm mt-1">{note.evolution_date}</p>
-                      )}
-                    </>
+                <div className="text-white rounded-2xl p-5 bg-amber-600">
+                  <p className="text-amber-200 text-xs font-bold uppercase tracking-wider mb-1">🚑 Ingreso por traslado</p>
+                  <h2 className="text-xl font-bold">Nota de ingreso por traslado</h2>
+                  {note.evolution_date && (
+                    <p className="text-amber-200 text-sm mt-1">{note.evolution_date}</p>
                   )}
                 </div>
-
-                {/* Sections */}
                 <div className="space-y-3">
-                  {(isTransfer ? TRANSFER_SECTIONS : EVOLUTION_SECTIONS).map(section => (
+                  {TRANSFER_SECTIONS.map(section => (
                     <SoapCard
                       key={section.key}
                       section={section}
@@ -1823,6 +1871,141 @@ export default function NewConsultation() {
                     />
                   ))}
                 </div>
+              </>
+            ) : isEvolution ? (
+              <>
+                {/* Evolution header */}
+                <div className="text-white rounded-2xl p-5 bg-violet-600">
+                  <p className="text-violet-200 text-xs font-bold uppercase tracking-wider mb-1">🏥 Nota de evolución</p>
+                  <h2 className="text-xl font-bold">Día {note.hospitalization_day} de hospitalización</h2>
+                  {note.evolution_date && (
+                    <p className="text-violet-200 text-sm mt-1">{note.evolution_date}</p>
+                  )}
+                </div>
+
+                {/* Same SOAP structure as ingreso */}
+                <div className="space-y-3">
+                  {EVOLUTION_SOAP_SECTIONS_BEFORE.map(section => (
+                    <SoapCard
+                      key={section.key}
+                      section={section}
+                      note={note}
+                      editingKey={editingKey}
+                      editValue={editValue}
+                      expandedSection={expandedSection}
+                      onEdit={startEdit}
+                      onSave={saveEdit}
+                      onCancelEdit={() => setEditingKey(null)}
+                      onEditValueChange={setEditValue}
+                      onToggleExpand={(key) => setExpandedSection(expandedSection === key ? null : key)}
+                    />
+                  ))}
+                </div>
+
+                {/* Diagnosis banner (violet for evolution) */}
+                <div className="bg-violet-700 text-white rounded-2xl p-5 border border-violet-800">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1">
+                      <p className="text-violet-200 text-xs font-bold uppercase tracking-wider mb-1">🔬 Diagnóstico(s)</p>
+                      <div className="text-base font-semibold leading-snug whitespace-pre-line">{note.diagnosis || 'No determinado'}</div>
+                      {note.cie10_code && (
+                        <div className="flex items-center gap-2 mt-2 flex-wrap">
+                          <span className="bg-white/20 text-white text-sm font-bold px-3 py-0.5 rounded-full">
+                            CIE-10: {note.cie10_code}
+                          </span>
+                          {note.cie10_description && (
+                            <span className="text-violet-200 text-sm">{note.cie10_description}</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => startEdit('diagnosis')}
+                      className="text-violet-300 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-white/10 flex-shrink-0"
+                      title="Editar diagnóstico"
+                    >
+                      <Edit3 size={15} />
+                    </button>
+                  </div>
+                  {editingKey === 'diagnosis' && (
+                    <div className="mt-3">
+                      <textarea
+                        value={editValue}
+                        onChange={e => setEditValue(e.target.value)}
+                        rows={4}
+                        className="w-full px-3 py-2 rounded-lg bg-white/20 text-white placeholder-violet-300 border border-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-white/40 resize-none"
+                        autoFocus
+                        placeholder="- Diagnóstico 1&#10;- Diagnóstico 2"
+                      />
+                      <div className="flex gap-2 mt-2">
+                        <button onClick={saveEdit} className="text-xs font-semibold bg-white text-violet-700 px-3 py-1.5 rounded-lg hover:bg-violet-50">Guardar</button>
+                        <button onClick={() => setEditingKey(null)} className="text-xs font-semibold text-violet-200 hover:text-white px-3 py-1.5">Cancelar</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-3">
+                  {SECTIONS_AFTER_DX.map(section => (
+                    <SoapCard
+                      key={section.key}
+                      section={section}
+                      note={note}
+                      editingKey={editingKey}
+                      editValue={editValue}
+                      expandedSection={expandedSection}
+                      onEdit={startEdit}
+                      onSave={saveEdit}
+                      onCancelEdit={() => setEditingKey(null)}
+                      onEditValueChange={setEditValue}
+                      onToggleExpand={(key) => setExpandedSection(expandedSection === key ? null : key)}
+                    />
+                  ))}
+                </div>
+
+                {/* Pharma suggestions for evolution */}
+                {note.pharma_suggestions && note.pharma_suggestions.length > 0 && (
+                  <div className="bg-white rounded-2xl border-2 border-blue-100 shadow-sm overflow-hidden">
+                    <button
+                      onClick={() => setPharmaOpen(o => !o)}
+                      className="w-full flex items-center justify-between gap-3 px-5 py-4 hover:bg-blue-50 transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Pill size={16} className="text-blue-500" />
+                        <span className="text-sm font-bold text-slate-700">Sugerencias farmacológicas</span>
+                        <span className="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-medium">
+                          {note.pharma_suggestions.length} medicamentos
+                        </span>
+                      </div>
+                      {pharmaOpen ? <ChevronUp size={16} className="text-slate-400 flex-shrink-0" /> : <ChevronDown size={16} className="text-slate-400 flex-shrink-0" />}
+                    </button>
+                    {pharmaOpen && (
+                      <div className="px-5 pb-5 space-y-3">
+                        <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2.5">
+                          <span className="text-sm flex-shrink-0">💊</span>
+                          <p className="text-xs text-blue-700 leading-relaxed">
+                            <span className="font-bold">Sugerencias basadas en el diagnóstico</span> — el médico decide y es responsable de toda prescripción
+                          </p>
+                        </div>
+                        <div className="space-y-2">
+                          {note.pharma_suggestions.map((s, i) => (
+                            <div key={i} className="flex items-start gap-3 bg-slate-50 rounded-xl px-4 py-3 border border-slate-100">
+                              <Pill size={14} className="text-blue-400 mt-0.5 flex-shrink-0" />
+                              <div>
+                                <p className="text-sm font-semibold text-slate-800">
+                                  {s.nombre_generico}
+                                  {s.nombre_comercial && <span className="text-slate-400 font-normal"> ({s.nombre_comercial})</span>}
+                                </p>
+                                <p className="text-xs text-slate-600 mt-0.5">{s.dosis}</p>
+                                <p className="text-xs text-slate-400 mt-0.5 italic">{s.indicacion}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </>
             ) : (
               <>
@@ -1957,6 +2140,11 @@ export default function NewConsultation() {
                 {note.diagnosis && <WebSearchEvidence diagnosis={note.diagnosis} />}
               </>
             )}
+
+            {/* Legal footnote — all note types */}
+            <p className="text-xs text-slate-400 italic border-t border-slate-100 pt-3 leading-relaxed px-1">
+              Nota generada con asistencia de IA · Este contenido no constituye la historia clínica oficial del paciente; el profesional de la salud es responsable de incorporarlo a su propio sistema de historia clínica conforme a la normativa vigente.
+            </p>
 
             {/* Glosa shield (all note types) */}
             {note.glosa_shield && <GlosaShieldCard shield={note.glosa_shield} />}

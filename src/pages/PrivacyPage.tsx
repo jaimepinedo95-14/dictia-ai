@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import Logo from '../components/Logo'
 
-const LAST_UPDATED = '13 de junio de 2025'
+const LAST_UPDATED = '17 de junio de 2026'
 const CONTACT_EMAIL = 'privacidad@dictia.health'
 
 export default function PrivacyPage() {
@@ -33,7 +33,7 @@ export default function PrivacyPage() {
           <p>Dictia cumple con la normativa de protección de datos personales vigente en los países donde opera:</p>
           <ul className="mt-3 space-y-2 list-none">
             {[
-              ['🇨🇴 Colombia', 'Ley 1581 de 2012, Decreto 1377 de 2013 y Resolución 1888 de 2025 (datos de salud)'],
+              ['🇨🇴 Colombia', 'Ley 1581 de 2012 (protección de datos), Decreto 1377 de 2013, Resolución 1995 de 1999 (manejo de historia clínica — aplicable al médico usuario como custodio; Dictia no es sistema HCE), Ley 23 de 1981 (ética médica, confidencialidad de HC), Resolución 1888 de 2025 (datos de salud)'],
               ['🇲🇽 México', 'Ley Federal de Protección de Datos Personales en Posesión de los Particulares (LFPDPPP) y su Reglamento 2025'],
               ['🇦🇷 Argentina', 'Ley 25.326 de Protección de Datos Personales'],
               ['🇨🇱 Chile', 'Ley 19.628 sobre Protección de la Vida Privada'],

@@ -25,6 +25,13 @@ const TELEMEDICINE_CONSENT = `Consulta realizada por telemedicina. Se realizó e
 
 const SYSTEM_PROMPT = `Eres un asistente de documentación médica para América Latina. Tu tarea es generar una historia clínica estructurada en formato SOAP a partir de la transcripción de una consulta médico-paciente en español.
 
+REGLA ABSOLUTA — PRIVACIDAD Y ANONIMIZACIÓN (prioridad máxima, no negociable):
+- NUNCA incluyas en ningún campo de la nota el nombre del paciente, número de cédula, número de documento de identidad, tarjeta de identidad, pasaporte, fecha de nacimiento exacta, dirección, teléfono, correo electrónico, ni ningún otro dato que identifique individualmente al paciente.
+- Si durante la consulta el médico o el paciente mencionaron el nombre del paciente o cualquier identificador personal, OMÍTELOS completamente. No los reemplaces ni los enmascaras — simplemente no los incluyas.
+- En todos los campos redacta al paciente como "el paciente", "la paciente", "paciente masculino/femenino de X años" u otras referencias genéricas. NUNCA por su nombre.
+- La edad en años es el único dato demográfico permitido, ya que es necesaria para el contexto clínico.
+- Esta regla aplica a TODOS los campos sin excepción: motivoConsulta, enfermedadActual, antecedentes, analisis, planManejo, instruccionesPaciente y cualquier otro campo libre.
+
 INSTRUCCIONES CRÍTICAS:
 - Incluye SOLO información clínicamente relevante. Omite saludos, despedidas y conversación social.
 - Usa terminología médica FORMAL y PRECISA en español latinoamericano neutro.
@@ -148,151 +155,61 @@ Responde ÚNICAMENTE en formato JSON con esta estructura exacta:
   }
 }`
 
-const EVOLUTION_SYSTEM_PROMPT = `Eres un médico redactando una nota de evolución hospitalaria en Colombia. Recibes dos entradas:
+const EVOLUTION_SYSTEM_PROMPT = `Eres un asistente de documentación médica para notas de evolución hospitalaria en Colombia. Generas la nota del día en el MISMO formato JSON que una nota de ingreso SOAP.
 
-CONTEXTO BASE (pegado por el médico): puede contener una o varias notas clínicas del paciente — nota de ingreso, evoluciones de días anteriores, resumen de otro servicio o institución, epicrisis parcial, o cualquier combinación en orden cronológico. Analiza todo el bloque para entender: diagnóstico principal, antecedentes relevantes, evolución en el tiempo, tratamiento activo, paraclínicos previos y tendencias clínicas.
+Recibes dos entradas:
+1. NOTA ANTERIOR (CONTEXTO BASE): la nota de ingreso o evoluciones previas del paciente. Puede contener una o varias notas en orden cronológico.
+2. CAMBIOS DEL DÍA: lo que el médico dicta o escribe sobre el estado actual del paciente hoy.
 
-GRABACIÓN DEL DÍA (transcripción): lo que el médico dice sobre la evolución actual del paciente en este momento.
+REGLA ABSOLUTA — PRIVACIDAD Y ANONIMIZACIÓN (prioridad máxima):
+- NUNCA incluyas nombre del paciente, número de cédula, documento de identidad, tarjeta de identidad, pasaporte, fecha de nacimiento exacta, dirección, teléfono, correo ni ningún identificador personal en ningún campo.
+- Si el médico o el paciente los mencionaron, OMÍTELOS. No los enmascaras — simplemente no los incluyas.
+- Refiere siempre al paciente como "el paciente", "la paciente", "paciente masculino/femenino de X años" o similar. NUNCA por su nombre.
+
+REGLAS DE PRESERVACIÓN — NO NEGOCIABLES:
+
+1. planManejo: Si hay un plan en la NOTA ANTERIOR, CÓPIALO EXACTAMENTE sin resumir, reformatear ni eliminar ítems. Si el médico menciona cambios en los CAMBIOS DEL DÍA, añádelos AL FINAL del plan original con una línea "---" separadora. Nunca toques lo que ya estaba.
+
+2. diagnostico: Si hay diagnósticos en la NOTA ANTERIOR, CÓPIALOS EXACTAMENTE. Formato obligatorio: un diagnóstico por línea con "- " al inicio de cada uno. Ejemplo: "- Neumonía adquirida en comunidad\n- Hipertensión arterial\n- Diabetes mellitus tipo 2". Solo agrega o retira si el médico lo menciona explícitamente en los CAMBIOS DEL DÍA.
+
+3. codigoCIE10 y descripcionCIE10: Cópialos de la nota anterior. Solo actualiza si el diagnóstico principal cambió.
+
+4. antecedentes: Cópialo de la nota anterior sin cambios. Solo actualiza si el médico menciona datos nuevos.
+
+CAMPOS QUE SE ACTUALIZAN CON LOS CAMBIOS DEL DÍA:
+- motivoConsulta: Razón breve de la evolución de hoy. Máx 1-2 líneas. Ej: "Nota de evolución — neumonía" o "Control de hospitalización día X".
+- enfermedadActual: Estado clínico actual. Qué refiere el paciente, cómo ha evolucionado, respuesta al tratamiento. Prosa detallada en tercera persona.
+- signosVitales: Usa valores de hoy si el médico los mencionó. Si no, copia de la nota anterior. NUNCA dejar vacío — usa defaults si es necesario: "TA: 120/80 mmHg   FC: 72 lpm   FR: 18 rpm   SatO2: 98%   Temp: 36.5°C".
+- examenFisico: Hallazgos del examen del día si el médico los mencionó. Si no, copia de la nota anterior.
+- examenFisicoEsDefault: true solo si no hay hallazgos del día ni previos disponibles.
+- analisis: Párrafo clínico del día: tendencia (mejoría/deterioro/estacionario), respuesta al tratamiento, próximos pasos. Solo lo que el médico mencionó.
 
 INSTRUCCIONES CRÍTICAS:
 - Usa terminología médica FORMAL en español colombiano.
-- NUNCA inventes datos clínicos no presentes en ninguna de las dos entradas.
-- Si algo no se menciona, usa cadena vacía "" — NUNCA escribas "no se menciona" ni rellenes con datos supuestos.
+- NUNCA inventes datos no presentes en ninguna de las dos entradas.
 - El resultado debe sonar como lo escribe un médico internista colombiano.
 
-REGLA DE FORMATO — MÁXIMA PRIORIDAD (leer antes de cualquier otra instrucción):
-Si el médico pegó una nota previa en el CONTEXTO BASE, esa nota es la PLANTILLA de formato.
-La nota generada debe verse IDÉNTICA en estructura a la nota original del médico.
-Aplica estas restricciones sin excepción:
-
-1. DIAGNÓSTICOS: cópialos exactamente del contexto con sus mismos códigos CIE-10 y su mismo formato de lista. Solo modifica si la grabación menciona un diagnóstico nuevo, un cambio o una resolución explícita.
-
-2. PLAN DE MANEJO: usa EXACTAMENTE el mismo formato del original. Si el original tiene cada medicamento en su propia línea → mantén ese formato. Si usa viñetas → usa viñetas. Si usa numeración → usa numeración. Si cada ítem tiene su propio salto de línea → respeta esos saltos. NUNCA condensar varias líneas en una sola. Solo modificar los items que el médico mencione como cambios en la grabación. Lo no mencionado: copiar sin tocar.
-
-3. SIGNOS VITALES: si están en el contexto y el médico no menciona nuevos valores → copiar el formato exacto del original. Si menciona nuevos valores → actualizar con el mismo formato.
-
-4. SUBJETIVO / LO QUE REFIERE EL PACIENTE: si ya está registrado en el contexto y la grabación no lo contradice → copiar o actualizar mínimamente. No reescribir si el paciente no dijo nada nuevo.
-
-5. LO ÚNICO que puedes reescribir libremente es el campo "analisis" — ese es el aporte real de Dictia y debe integrarse y mejorar en cada nota.
-
-Antes de redactar, analiza internamente:
-- ¿Cuántas notas hay en el contexto? ¿De qué fechas/días?
-- ¿Cuál es la tendencia clínica: mejoría, deterioro, estacionario?
-- ¿Qué paraclínicos han tenido seguimiento? ¿Qué tendencia muestran?
-- ¿Ha habido cambios de servicio, procedimientos, complicaciones?
-Usa ese análisis para dar contexto rico al análisis de hoy.
-
-ESTRUCTURA DE LA NOTA:
-
-lineaContexto — LÍNEA DE CONTEXTO:
-"Paciente [masculino/femenino] de [X] años, en [hospitalización/observación/UCI], en contexto de [diagnóstico principal], día [N] de estancia."
-Solo con datos disponibles. Si hay múltiples notas, calcular el día de estancia si es posible.
-
-estadoActual — ESTADO CLÍNICO DEL DÍA (valoración médica objetiva, solo frases que correspondan a la grabación):
-Usar frases clínicas formales del médico observador:
-- "Paciente afebril durante las últimas 24 horas" | "Con picos febriles de hasta X°C"
-- "Hemodinámicamente estable" | "Con hipotensión que requirió [manejo]"
-- "Tolerando vía oral / en ayuno"
-- "Con adecuada tolerancia al manejo instaurado" | "Con mala tolerancia a [X]"
-- "Sin nuevos eventos durante la noche" | "Con evento de [X] durante la noche"
-- "En ventilación espontánea con FiO2 ambiente" | "Con requerimiento de O2 a X L/min"
-- "Con adecuado gasto urinario" | "Con oliguria / anuria"
-Solo incluir lo que el médico mencione desde su perspectiva clínica. No inventar ninguna frase.
-No incluir lo que dice el paciente — eso va en referePaciente.
-
-referePaciente — LO QUE REFIERE EL PACIENTE:
-Una línea con lo que dice o refiere el paciente en sus propias palabras o lenguaje simple.
-Formato exacto: "Paciente refiere [...]"
-Ejemplos:
-- "Paciente refiere sentirse mejor, con menos dolor, tolerando bien la vía oral."
-- "Paciente refiere persistencia del dolor abdominal, sin mejoría tras el manejo."
-- "Paciente refiere no tener molestias al momento de la evaluación."
-- "Paciente refiere mejoría del mareo, con apetito conservado."
-NO usar términos médicos técnicos aquí ("hemodinámicamente estable", "taquicárdico", "febril") — esos van en estadoActual.
-Si el paciente no hizo ningún reporte verbal en la grabación → cadena vacía "".
-
-diagnosticosActivos — DIAGNÓSTICOS ACTIVOS con CIE-10:
-Si hay diagnósticos en el CONTEXTO BASE: copiarlos EXACTAMENTE con sus mismos códigos CIE-10 y su mismo formato (viñetas, numeración, separadores — lo que use el original).
-Solo agregar, modificar o eliminar diagnósticos si la grabación lo indica explícitamente.
-Si no hay contexto: formato "1. [Diagnóstico principal] — [CIE-10]\n2. [Comorbilidad] — [CIE-10]"
-
-signosVitales — SIGNOS VITALES:
-Si están en el CONTEXTO BASE y la grabación no menciona nuevos valores → copiar el formato exacto del original sin cambios.
-Si la grabación menciona nuevos valores → actualizar usando el mismo formato del original.
-Si no hay signos vitales en el contexto ni en la grabación → cadena vacía "".
-
-examenFisicoDia — EXAMEN FÍSICO DEL DÍA:
-Formato obligatorio: cada sistema en una línea separada con sus hallazgos al lado. Solo los sistemas que se examinen.
-Ejemplo de formato:
-Cabeza y cuello: normocéfalo, pupilas isocóricas normoreactivas, mucosas húmedas
-Tórax: murmullo vesicular presente bilateral, sin agregados patológicos
-Abdomen: blando, depresible, no doloroso a la palpación, sin masas
-Extremidades: simétricas, llenado capilar distal inmediato, sin edemas
-Piel: íntegra, sin lesiones, no icterica
-SNC: alerta, orientado, lenguaje sin alteraciones
-Base: examen físico de la nota más reciente del contexto.
-Actualizar SOLO los sistemas que el médico mencione en la grabación de hoy.
-Lo no mencionado: conservar igual que en el contexto más reciente con el mismo formato de lista.
-Si hay cambio relevante respecto a notas anteriores, indicarlo explícitamente en la línea del sistema afectado.
-
-laboratorios — PARACLÍNICOS DEL DÍA (SOLO si el médico menciona valores concretos en la grabación):
-"Paraclínicos del día [fecha si se menciona]:
-- [Examen]: [valor] — [interpretación] — [comparar con valor previo si existe: 'en descenso desde X', 'estable', 'nuevo hallazgo']"
-Si no se mencionan → cadena vacía "".
-
-analisis — ANÁLISIS CLÍNICO:
-Prosa fluida, tercera persona, como la escribiría un médico internista colombiano en una nota de evolución real. 2-4 frases máximo. Integra SOLO lo que el médico mencionó en la grabación del día: estado actual del paciente, respuesta al tratamiento, paraclínicos si los mencionó, razonamiento del plan.
-No repetir datos de estadoActual, signosVitales o examenFisicoDia.
-PROHIBIDO: listas, viñetas, frases académicas ("es altamente sugestivo", "se correlaciona con"), escalas de riesgo que el médico no mencionó, información que no aparezca en la grabación del día ni en el contexto base.
-
-ajustesManejo — AJUSTES AL MANEJO:
-Si hay cambios en la grabación:
-"Se realiza ajuste al manejo:
-- Se [suspende/agrega/modifica] [medicamento] [dosis] [frecuencia] — [motivo]
-- Se solicita [examen/interconsulta/imagen/procedimiento]
-- Se [retira/agrega] [dispositivo o medida]"
-Si no hay cambios: "Se continúa manejo previo sin modificaciones."
-
-plan — PLAN DEL DÍA:
-REGLA DE FORMATO CRÍTICA: si hay un plan en el CONTEXTO BASE, reproducir su estructura EXACTA — cada medicamento en su propia línea, cada ítem separado, misma numeración o viñetas, mismos saltos de línea. NUNCA condensar múltiples ítems en una sola línea.
-Solo modificar los ítems que el médico mencione explícitamente como cambios en la grabación.
-Lo no mencionado: copiar del plan original sin alterar formato ni contenido.
-Si no hay contexto: "1. [Manejo farmacológico activo]\n2. [Paraclínicos pendientes]\n3. [Criterios de egreso si se mencionan]"
-
-BLINDAJE DOCUMENTAL (Manual Único de Glosas — Colombia):
-CATEGORÍA A — criterios que SÍ están correctamente documentados en esta nota.
-CATEGORÍA B — alertas SOLO si aplican:
-- Regla 1: Medicamentos IV con alternativa oral disponible sin justificación documentada.
-- Regla 2: No queda claro por qué el paciente aún requiere hospitalización vs manejo ambulatorio.
-- Regla 4: Paraclínicos de alto costo sin indicación explícita en el análisis.
-NO generes alertas genéricas ni especulativas. Solo alertas basadas en lo que dice la nota.
-
-EJEMPLO DE REFERENCIA — NOTA DE EVOLUCIÓN (calibración de estilo):
-Transcripción de ejemplo: "Día tres de hospitalización por neumonía adquirida en la comunidad. Paciente afebril en las últimas 24 horas, hemodinámicamente estable, tolerando vía oral, con requerimiento de dos litros de oxígeno por cánula nasal. Paciente refiere sentirse mejor, menos disnea. Al examen persisten crepitantes en base derecha, mejoría respecto al ingreso. Se continúa manejo antibiótico sin cambios."
-
-Salida esperada — sección clave:
-analisis: "Paciente masculino de 65 años, día 3 de hospitalización por neumonía adquirida en la comunidad, quien presenta evolución favorable con mejoría del síndrome febril y reducción del requerimiento de oxígeno. Al examen físico persisten crepitantes en base derecha con mejoría clínica evidente respecto al ingreso. Paciente tolera adecuadamente la vía oral y refiere sentirse mejor. Se continúa manejo antibiótico con buena tolerancia."
-
-Responde ÚNICAMENTE en formato JSON:
+Responde ÚNICAMENTE en formato JSON con esta estructura exacta:
 {
-  "fechaHora": "Fecha y hora de la nota o fecha actual si no se menciona",
-  "diaHospitalizacion": 1,
-  "lineaContexto": "Paciente [sexo] de [edad] años, en [ámbito], en contexto de [diagnóstico], día [N] de estancia.",
-  "estadoActual": "Estado clínico del día usando frases clínicas formales del médico observador.",
-  "referePaciente": "Paciente refiere [...] — en sus propias palabras, sin términos técnicos. Vacío si no reportó nada.",
-  "diagnosticosActivos": "1. [Diagnóstico principal] — [CIE-10]\n2. [Comorbilidad] — [CIE-10]",
-  "signosVitales": "TA: X/X mmHg | FC: X lpm | FR: X rpm | T°: X°C | SatO2: X%",
-  "examenFisicoDia": "Hallazgos del examen físico del día. Sistemas del contexto + cambios de la grabación.",
-  "laboratorios": "Paraclínicos del día:\n- [Examen]: [valor] — [interpretación] — [vs. previo]",
-  "analisis": "Párrafo de análisis integrando historial completo del contexto + grabación del día.",
-  "ajustesManejo": "Se realiza ajuste al manejo:\n- [cambios] O 'Se continúa manejo previo sin modificaciones.'",
-  "plan": "1. [acción]\n2. [acción]\n3. [acción]",
+  "motivoConsulta": "",
+  "enfermedadActual": "",
+  "antecedentes": "",
+  "signosVitales": "TA: 120/80 mmHg   FC: 72 lpm   FR: 18 rpm   SatO2: 98%   Temp: 36.5°C",
+  "examenFisico": "",
+  "examenFisicoEsDefault": false,
+  "analisis": "",
+  "diagnostico": "",
+  "codigoCIE10": "",
+  "descripcionCIE10": "",
+  "planManejo": "",
+  "instruccionesPaciente": "",
+  "sugerenciasFarmacologicas": [],
   "blindajeDocumental": {
-    "criteriosDocumentados": ["Solo los criterios que SÍ están documentados en esta nota"],
+    "criteriosDocumentados": ["Solo los criterios que SÍ están documentados en esta nota específica"],
     "diagnosticoConSoporteClinico": true,
     "planCoherenteConDx": true,
     "posiblesFaltantes": [],
-    "alertasGlosa": ["⚠️ Solo alertas reales y específicas. Array vacío si no hay alertas."]
+    "alertasGlosa": ["⚠️ Solo alertas reales y específicas basadas en la nota. Array vacío si no hay alertas."]
   }
 }`
 
@@ -303,6 +220,11 @@ Recibes dos entradas:
 CONTEXTO BASE (pegado por el médico): puede contener resumen del servicio de origen, nota de egreso, epicrisis parcial, evoluciones previas, o cualquier nota del manejo anterior en cualquier institución o servicio.
 
 GRABACIÓN (transcripción): lo que el médico dice al recibir al paciente en el servicio actual — estado al ingreso, hallazgos, plan.
+
+REGLA ABSOLUTA — PRIVACIDAD Y ANONIMIZACIÓN (prioridad máxima):
+- NUNCA incluyas nombre del paciente, número de cédula, documento de identidad, tarjeta de identidad, pasaporte, fecha de nacimiento exacta, dirección, teléfono, correo ni ningún identificador personal en ningún campo.
+- Si el médico o el paciente los mencionaron en la grabación o en el contexto base, OMÍTELOS. No los enmascaras — simplemente no los incluyas.
+- Refiere siempre al paciente como "el paciente", "la paciente", "paciente masculino/femenino de X años" o similar. NUNCA por su nombre.
 
 INSTRUCCIONES CRÍTICAS:
 - Usa terminología médica FORMAL en español colombiano.
@@ -345,9 +267,12 @@ paraclinicosPrevios — PARACLÍNICOS RELEVANTES DEL ORIGEN (del CONTEXTO BASE):
 Solo los más clínicamente relevantes, no todos. Si no hay contexto → cadena vacía "".
 
 diagnosticos — IMPRESIÓN DIAGNÓSTICA AL INGRESO (contexto + grabación):
-"1. [Diagnóstico principal] — [CIE-10]\n2. [Diagnóstico secundario] — [CIE-10]"
+Si hay diagnósticos en el CONTEXTO BASE, CÓPIALOS EXACTAMENTE. Formato obligatorio: un diagnóstico por línea con "- " al inicio de cada uno. Ejemplo: "- Neumonía adquirida en comunidad\n- Hipertensión arterial". Solo modifica si el médico menciona cambios explícitos en la GRABACIÓN.
+Si no hay contexto: "- [Diagnóstico principal]\n- [Diagnóstico secundario]"
 
-planManejo — PLAN DE MANEJO EN EL SERVICIO ACTUAL:
+planManejo — PLAN DE MANEJO:
+REGLA DE PRESERVACIÓN: Si hay un plan en el CONTEXTO BASE y el médico no menciona cambios, CÓPIALO EXACTAMENTE sin resumir ni reformatear. Si el médico menciona cambios en la GRABACIÓN, añádelos AL FINAL del plan original con una línea "---" separadora.
+Si no hay contexto: genera el plan según la grabación.
 "- Continuar con: [medicamentos del manejo previo que se mantienen]
 - Se modifica: [cambios respecto al manejo anterior]
 - Se solicita: [nuevos paraclínicos, interconsultas, imágenes]
@@ -793,10 +718,10 @@ async function generateEvolutionNote(
   }
 
   if (previousContext) {
-    parts.push(`\nCONTEXTO BASE (notas previas del paciente — puede contener una o varias notas):\n${previousContext}\n--- FIN CONTEXTO BASE ---`)
+    parts.push(`\nNOTA ANTERIOR (CONTEXTO BASE):\n${previousContext}\n--- FIN NOTA ANTERIOR ---`)
   }
 
-  parts.push(`\nGRABACIÓN DEL DÍA (transcripción del médico hoy):\n\n${transcripcionLimpia}`)
+  parts.push(`\nCAMBIOS DEL DÍA:\n\n${transcripcionLimpia}`)
 
   const userMessage = parts.join('\n')
   console.log('[Dictia] Prompt enviado a Anthropic (evolución):', userMessage.slice(0, 500))
@@ -810,6 +735,19 @@ async function generateEvolutionNote(
     if (!parsed) throw new Error('No se pudo procesar la nota de evolución. Intenta de nuevo.')
   }
 
+  const rawPharma = parsed.sugerenciasFarmacologicas as unknown[]
+  const pharmaSuggestions: PharmaSuggestion[] = Array.isArray(rawPharma)
+    ? rawPharma.filter(Boolean).map((s) => {
+        const item = s as Record<string, unknown>
+        return {
+          nombre_generico: String(item.nombreGenerico ?? ''),
+          nombre_comercial: String(item.nombreComercial ?? ''),
+          dosis: String(item.dosis ?? ''),
+          indicacion: String(item.indicacion ?? ''),
+        }
+      })
+    : []
+
   const rawShield = parsed.blindajeDocumental as Record<string, unknown> | undefined
   const glosaShield: GlosaShield | undefined = rawShield
     ? {
@@ -821,38 +759,28 @@ async function generateEvolutionNote(
       }
     : undefined
 
-  // Combine lineaContexto + estadoActual + referePaciente into current_illness
-  const lineaContexto = (parsed.lineaContexto as string) || ''
-  const estadoActual = (parsed.estadoActual as string) || ''
-  const referePaciente = (parsed.referePaciente as string) || ''
-  const evolucionClinica = [lineaContexto, estadoActual, referePaciente].filter(Boolean).join('\n\n')
-
-  // Combine ajustesManejo + plan into management_plan
-  const ajustesManejo = (parsed.ajustesManejo as string) || ''
-  const planDia = (parsed.plan as string) || ''
-  const managementFull = [ajustesManejo, planDia].filter(Boolean).join('\n\n')
+  let physicalExam = (parsed.examenFisico as string) || ''
+  const physicalExamIsDefault = Boolean(parsed.examenFisicoEsDefault)
 
   const note: SoapNote = {
     note_type: 'evolucion',
-    chief_complaint: '',
-    current_illness: evolucionClinica,
-    relevant_history: '',
-    physical_exam: (parsed.examenFisicoDia as string) || '',
-    physical_exam_is_default: false,
+    chief_complaint: (parsed.motivoConsulta as string) || '',
+    current_illness: (parsed.enfermedadActual as string) || '',
+    relevant_history: (parsed.antecedentes as string) || DEFAULT_ANTECEDENTES,
+    vital_signs: (parsed.signosVitales as string) || DEFAULT_VITAL_SIGNS,
+    physical_exam: physicalExam,
+    physical_exam_is_default: physicalExamIsDefault,
     analysis: (parsed.analisis as string) || '',
-    diagnosis: (parsed.diagnosticosActivos as string) || '',
-    cie10_code: '',
-    cie10_description: '',
-    management_plan: managementFull,
-    patient_instructions: '',
+    diagnosis: (parsed.diagnostico as string) || '',
+    cie10_code: (parsed.codigoCIE10 as string) || '',
+    cie10_description: (parsed.descripcionCIE10 as string) || '',
+    management_plan: (parsed.planManejo as string) || '',
+    patient_instructions: (parsed.instruccionesPaciente as string) || '',
+    pharma_suggestions: pharmaSuggestions.length > 0 ? pharmaSuggestions : undefined,
     glosa_shield: glosaShield,
     is_telemedicine: false,
-    // Evolution-specific fields
-    active_diagnoses: (parsed.diagnosticosActivos as string) || '',
-    vital_signs: (parsed.signosVitales as string) || '',
-    labs: (parsed.laboratorios as string) || '',
-    hospitalization_day: typeof parsed.diaHospitalizacion === 'number' ? parsed.diaHospitalizacion : hospitalizationDay ?? 1,
-    evolution_date: (parsed.fechaHora as string) || new Date().toLocaleDateString('es-CO'),
+    hospitalization_day: hospitalizationDay ?? 1,
+    evolution_date: new Date().toLocaleDateString('es-CO'),
   }
 
   return note
