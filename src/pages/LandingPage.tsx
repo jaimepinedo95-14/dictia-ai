@@ -212,7 +212,7 @@ export default function LandingPage() {
 
               <h1 className="text-5xl sm:text-6xl lg:text-[68px] xl:text-[76px] font-black text-slate-900 leading-[1.05] tracking-tight mb-6">
                 Tu consulta,<br />
-                <span style={{ color: '#E8744A' }}>documentada</span><br />
+                <span style={{ color: '#14B8A6' }}>documentada</span><br />
                 en segundos.
               </h1>
 
@@ -232,14 +232,14 @@ export default function LandingPage() {
                 <Link
                   to="/registro"
                   className="inline-flex items-center justify-center gap-2 text-white font-bold px-8 py-4 rounded-2xl text-base transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
-                  style={{ backgroundColor: '#E8744A' }}
+                  style={{ backgroundColor: '#14B8A6' }}
                   onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#d9663c')}
-                  onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#E8744A')}
+                  onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#14B8A6')}
                 >
                   Empieza gratis — 10 notas <ArrowRight size={18} />
                 </Link>
                 <a href="#como-funciona" className="inline-flex items-center justify-center gap-2 bg-white border border-slate-200 hover:border-slate-300 text-slate-700 font-semibold px-8 py-4 rounded-2xl text-base transition-colors">
-                  <Play size={16} style={{ color: '#E8744A' }} />
+                  <Play size={16} style={{ color: '#14B8A6' }} />
                   Ver cómo funciona
                 </a>
               </div>
@@ -273,7 +273,7 @@ export default function LandingPage() {
                       key={i}
                       onClick={() => { setHeroPrev(heroIndex); setHeroIndex(i); setTimeout(() => setHeroPrev(null), 700) }}
                       className="w-2 h-2 rounded-full transition-all duration-300"
-                      style={{ backgroundColor: i === heroIndex ? '#E8744A' : 'rgba(255,255,255,0.6)' }}
+                      style={{ backgroundColor: i === heroIndex ? '#14B8A6' : 'rgba(255,255,255,0.6)' }}
                       aria-label={`Imagen ${i + 1}`}
                     />
                   ))}

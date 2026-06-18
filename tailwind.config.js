@@ -7,6 +7,13 @@ export default {
   theme: {
     extend: {
       colors: {
+        brand: {
+          petroleo: '#0F4C5C',
+          turquesa: '#14B8A6',
+          white: '#FFFFFF',
+          lightGray: '#F5F7FA',
+          darkGray: '#374151',
+        },
         primary: {
           50: '#eff4ff',
           100: '#dbe6fe',
