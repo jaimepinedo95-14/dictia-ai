@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { NavLink, useNavigate } from 'react-router-dom'
+import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { clsx } from 'clsx'
 import {
   LayoutDashboard, Mic, ClipboardList, Users, Settings,
@@ -97,7 +97,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const sidebar = (
     <div className="flex flex-col h-full">
       <div className="px-5 py-4 border-b border-slate-100">
-        <Logo size="md" />
+        <Link to="/dashboard"><Logo size="md" /></Link>
       </div>
 
       {profile?.subscription_status === 'trial' && (
@@ -211,7 +211,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Mobile header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-20 bg-white border-b border-slate-100 px-4 py-3 flex items-center justify-between">
-        <Logo size="sm" />
+        <Link to="/dashboard"><Logo size="sm" /></Link>
         <button onClick={() => setMobileOpen(!mobileOpen)} className="p-2 rounded-lg hover:bg-slate-100">
           {mobileOpen ? <X size={20} /> : <Menu size={20} />}
         </button>

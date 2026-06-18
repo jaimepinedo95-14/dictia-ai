@@ -202,11 +202,11 @@ export default function SuperAdmin() {
                               <div className="flex items-center gap-3">
                                 <div className="w-9 h-9 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
                                   <span className="text-xs font-bold text-primary-700">
-                                    {u.full_name.split(' ').map(n => n[0]).slice(0, 2).join('')}
+                                    {(u.full_name || '?').split(' ').map(n => n[0]).slice(0, 2).join('')}
                                   </span>
                                 </div>
                                 <div>
-                                  <p className="font-semibold text-slate-900 leading-tight">{u.full_name}</p>
+                                  <p className="font-semibold text-slate-900 leading-tight">{u.full_name || '(sin nombre)'}</p>
                                   <p className="text-xs text-slate-400">{u.email}</p>
                                   <p className="text-xs text-slate-400">{u.specialty}</p>
                                 </div>
