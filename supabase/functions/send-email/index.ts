@@ -41,7 +41,7 @@ function getSubjectAndHtml(payload: EmailPayload): { subject: string; html: stri
   const card = (content: string) =>
     `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:32px;margin:24px 0;">${content}</div>`
   const btn = (href: string, text: string) =>
-    `<a href="${href}" style="display:inline-block;background:#1B4FD8;color:#fff;font-weight:700;padding:14px 28px;border-radius:12px;text-decoration:none;margin-top:16px;">${text}</a>`
+    `<a href="${href}" style="display:inline-block;background:#14B8A6;color:#fff;font-weight:700;padding:14px 28px;border-radius:12px;text-decoration:none;margin-top:16px;">${text}</a>`
   const small = (text: string) =>
     `<p style="font-size:12px;color:#94a3b8;margin-top:24px;">${text}</p>`
 
@@ -49,7 +49,7 @@ function getSubjectAndHtml(payload: EmailPayload): { subject: string; html: stri
     return {
       subject: '¡Tu prueba gratuita de Dictia AI está activa!',
       html: `<div style="${baseStyle}">
-        <h2 style="color:#1B4FD8;">¡Hola, ${firstName}!</h2>
+        <h2 style="color:#14B8A6;">¡Hola, ${firstName}!</h2>
         <p>Tu prueba gratuita de <strong>3 días</strong> está activa. Tienes acceso completo a todas las funciones de Dictia AI.</p>
         ${card(`
           <p style="margin:0 0 8px 0;font-size:13px;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">Resumen de tu prueba</p>

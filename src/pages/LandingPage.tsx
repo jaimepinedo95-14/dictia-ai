@@ -233,7 +233,7 @@ export default function LandingPage() {
                   to="/registro"
                   className="inline-flex items-center justify-center gap-2 text-white font-bold px-8 py-4 rounded-2xl text-base transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
                   style={{ backgroundColor: '#14B8A6' }}
-                  onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#d9663c')}
+                  onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#0e9387')}
                   onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#14B8A6')}
                 >
                   Empieza gratis — 10 notas <ArrowRight size={18} />
