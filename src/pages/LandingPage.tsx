@@ -556,15 +556,15 @@ export default function LandingPage() {
             <p className="text-xs font-bold text-primary-600 uppercase tracking-widest mb-4">Privacidad</p>
             <h2 className="text-4xl sm:text-5xl font-black text-slate-900 mb-5">Privacidad por diseño,<br />no por promesa.</h2>
             <p className="text-lg text-slate-500">
-              Los datos de tus pacientes nunca salen de tu pantalla. Dictia no los almacena, procesa ni retiene.
+              Nunca te pedimos el nombre ni el documento del paciente. La nota se guarda temporalmente para que puedas recuperarla si hay una interrupción, y se elimina automáticamente a las 24 horas.
             </p>
           </div>
           <div className="grid sm:grid-cols-2 gap-3 max-w-3xl mx-auto">
             {[
               { icon: Lock, title: 'Audio eliminado automáticamente', desc: 'El audio de la consulta se borra permanentemente una vez que se completa la transcripción. Nunca almacenamos grabaciones.' },
-              { icon: Shield, title: 'Cero datos clínicos almacenados', desc: 'La transcripción y la nota generada nunca llegan a nuestros servidores. Solo guardamos datos del médico para gestionar su cuenta.' },
+              { icon: Shield, title: 'Sin datos del paciente', desc: 'Nunca capturamos el nombre, documento o cualquier dato que identifique al paciente. Solo guardamos los datos del médico para gestionar su cuenta.' },
               { icon: Globe, title: 'Cumple regulaciones locales', desc: 'Diseñado para cumplir con las leyes de protección de datos de Colombia, México, Argentina, Chile y más países.' },
-              { icon: CheckCircle, title: 'El médico siempre aprueba', desc: 'Ninguna nota se guarda sin tu revisión y aprobación explícita. Tú tienes el control total en todo momento.' },
+              { icon: CheckCircle, title: 'El médico siempre aprueba', desc: 'Tú revisas y editas cada nota antes de usarla. Se guarda temporalmente por 24 horas para que puedas recuperarla, y luego se elimina automáticamente — expórtala o cópiala a tu sistema de historia clínica antes de ese plazo.' },
             ].map(({ icon: Icon, title, desc }) => (
               <div key={title} className="flex gap-4 p-6 bg-white rounded-2xl border border-slate-100">
                 <div className="w-10 h-10 rounded-xl bg-primary-50 border border-primary-100 flex items-center justify-center flex-shrink-0">

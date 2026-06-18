@@ -14,7 +14,7 @@ function loadLocalNote(id: string): SoapNote | null {
     const raw = localStorage.getItem(`dictia_note_${id}`)
     if (!raw) return null
     const parsed = JSON.parse(raw) as { note: SoapNote; savedAt: number }
-    if (Date.now() - parsed.savedAt > 90 * 24 * 60 * 60 * 1000) {
+    if (Date.now() - parsed.savedAt > 24 * 60 * 60 * 1000) {
       localStorage.removeItem(`dictia_note_${id}`)
       return null
     }

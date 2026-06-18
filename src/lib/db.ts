@@ -8,8 +8,8 @@ export type SavingsStats = {
   total: number
 }
 
-// Clinical notes are NEVER stored in the DB — privacy by design.
-// This function always returns [] so callers remain compatible.
+// Clinical notes are stored temporarily (24h, purged by the delete-expired-notes
+// cron) — never permanently. This function always returns [] so callers remain compatible.
 export async function fetchRecentApprovedNotes(): Promise<never[]> {
   return []
 }
@@ -28,7 +28,27 @@ export async function saveConsultation(
 ): Promise<string | null> {
   if (!isSupabaseConfigured || !userId) return null
 
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+
   const { data: row, error } = await supabase
+    .from('consultations')
+    .insert({
+      user_id: userId,
+      recording_duration: data.recording_duration,
+      note_type: data.note_type ?? null,
+      status: data.status,
+      specialty: data.specialty ?? null,
+      approved_at: data.status === 'approved' ? new Date().toISOString() : null,
+      note_content: data.note_content ?? null,
+      expires_at: expiresAt,
+    })
+    .select('id')
+    .single()
+
+  if (!error) return (row as { id: string }).id
+
+  // Fallback: expires_at column may not exist yet
+  const { data: row2, error: err2 } = await supabase
     .from('consultations')
     .insert({
       user_id: userId,
@@ -42,12 +62,12 @@ export async function saveConsultation(
     .select('id')
     .single()
 
-  if (error) {
-    console.error('Error al guardar consulta:', error)
+  if (err2) {
+    console.error('Error al guardar consulta:', err2)
     return null
   }
 
-  return (row as { id: string }).id
+  return (row2 as { id: string }).id
 }
 
 export async function createPendingConsultation(
