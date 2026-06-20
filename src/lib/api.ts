@@ -167,7 +167,7 @@ Responde ÚNICAMENTE en formato JSON con esta estructura exacta:
 const EVOLUTION_SYSTEM_PROMPT = `Eres un asistente de documentación médica para notas de evolución hospitalaria en Colombia. Generas la nota del día en el MISMO formato JSON que una nota de ingreso SOAP.
 
 Recibes dos entradas:
-1. NOTA ANTERIOR (CONTEXTO BASE): la nota de ingreso o evoluciones previas del paciente. Puede contener una o varias notas en orden cronológico.
+1. CONTEXTO ADICIONAL DEL MÉDICO: si el médico pegó ahí una nota de ingreso o evoluciones previas del paciente, esa es la NOTA ANTERIOR — puede contener una o varias notas en orden cronológico. Si el médico no pegó ninguna nota, este contexto puede venir vacío o con otro tipo de información (resultados de paraclínicos, instrucciones puntuales) — en ese caso NO aplican las reglas de preservación de abajo.
 2. CAMBIOS DEL DÍA: lo que el médico dicta o escribe sobre el estado actual del paciente hoy.
 
 REGLA ABSOLUTA — PRIVACIDAD Y ANONIMIZACIÓN (prioridad máxima):
@@ -175,15 +175,15 @@ REGLA ABSOLUTA — PRIVACIDAD Y ANONIMIZACIÓN (prioridad máxima):
 - Si el médico o el paciente los mencionaron, OMÍTELOS. No los enmascaras — simplemente no los incluyas.
 - Refiere siempre al paciente como "el paciente", "la paciente", "paciente masculino/femenino de X años" o similar. NUNCA por su nombre.
 
-REGLAS DE PRESERVACIÓN — NO NEGOCIABLES:
+REGLAS DE PRESERVACIÓN — NO NEGOCIABLES (aplican solo si el CONTEXTO ADICIONAL DEL MÉDICO contiene una nota clínica previa con plan y/o diagnósticos):
 
-1. planManejo: Si hay un plan en la NOTA ANTERIOR, CÓPIALO EXACTAMENTE sin resumir, reformatear ni eliminar ítems. Si el médico menciona cambios en los CAMBIOS DEL DÍA, añádelos AL FINAL del plan original con una línea "---" separadora. Nunca toques lo que ya estaba.
+1. planManejo: Si hay un plan en la nota previa (dentro del CONTEXTO ADICIONAL DEL MÉDICO), CÓPIALO EXACTAMENTE sin resumir, reformatear ni eliminar ítems. Si el médico menciona cambios en los CAMBIOS DEL DÍA, añádelos AL FINAL del plan original con una línea "---" separadora. Nunca toques lo que ya estaba.
 
-2. diagnostico: Si hay diagnósticos en la NOTA ANTERIOR, CÓPIALOS EXACTAMENTE. Formato obligatorio: un diagnóstico por línea con "- " al inicio de cada uno. Ejemplo: "- Neumonía adquirida en comunidad\n- Hipertensión arterial\n- Diabetes mellitus tipo 2". Solo agrega o retira si el médico lo menciona explícitamente en los CAMBIOS DEL DÍA.
+2. diagnostico: Si hay diagnósticos en la nota previa, CÓPIALOS EXACTAMENTE. Formato obligatorio: un diagnóstico por línea con "- " al inicio de cada uno. Ejemplo: "- Neumonía adquirida en comunidad\n- Hipertensión arterial\n- Diabetes mellitus tipo 2". Solo agrega o retira si el médico lo menciona explícitamente en los CAMBIOS DEL DÍA.
 
-3. codigoCIE10 y descripcionCIE10: Cópialos de la nota anterior. Solo actualiza si el diagnóstico principal cambió.
+3. codigoCIE10 y descripcionCIE10: Cópialos de la nota previa. Solo actualiza si el diagnóstico principal cambió.
 
-4. antecedentes: Cópialo de la nota anterior sin cambios. Solo actualiza si el médico menciona datos nuevos.
+4. antecedentes: Cópialo de la nota previa sin cambios. Solo actualiza si el médico menciona datos nuevos.
 
 CAMPOS QUE SE ACTUALIZAN CON LOS CAMBIOS DEL DÍA:
 - motivoConsulta: Razón breve de la evolución de hoy. Máx 1-2 líneas. Ej: "Nota de evolución — neumonía" o "Control de hospitalización día X".
@@ -222,96 +222,18 @@ Responde ÚNICAMENTE en formato JSON con esta estructura exacta:
   }
 }`
 
-const TRANSFER_SYSTEM_PROMPT = `Eres un médico redactando una nota de ingreso por traslado en Colombia. El paciente llega desde cualquier origen: otro servicio del mismo hospital, otra institución, urgencias, UCI, clínica, centro de salud, domicilio, o cualquier otro lugar.
+// Ingreso por traslado ya NO es un modelo/esquema distinto — usa exactamente el
+// mismo SYSTEM_PROMPT y el mismo JSON que una historia clínica de ingreso estándar.
+// Este addon es lo único que cambia: le pide al modelo que revise el CONTEXTO
+// ADICIONAL DEL MÉDICO buscando una nota previa, y si la encuentra, adapte el
+// contenido (no la estructura) para reflejar la continuidad asistencial.
+const TRANSFER_CONTINUITY_ADDON = `
 
-Recibes dos entradas:
-
-CONTEXTO BASE (pegado por el médico): puede contener resumen del servicio de origen, nota de egreso, epicrisis parcial, evoluciones previas, o cualquier nota del manejo anterior en cualquier institución o servicio.
-
-GRABACIÓN (transcripción): lo que el médico dice al recibir al paciente en el servicio actual — estado al ingreso, hallazgos, plan.
-
-REGLA ABSOLUTA — PRIVACIDAD Y ANONIMIZACIÓN (prioridad máxima):
-- NUNCA incluyas nombre del paciente, número de cédula, documento de identidad, tarjeta de identidad, pasaporte, fecha de nacimiento exacta, dirección, teléfono, correo ni ningún identificador personal en ningún campo.
-- Si el médico o el paciente los mencionaron en la grabación o en el contexto base, OMÍTELOS. No los enmascaras — simplemente no los incluyas.
-- Refiere siempre al paciente como "el paciente", "la paciente", "paciente masculino/femenino de X años" o similar. NUNCA por su nombre.
-
-INSTRUCCIONES CRÍTICAS:
-- Usa terminología médica FORMAL en español colombiano.
-- NUNCA inventes datos no presentes en ninguna de las dos entradas.
-- Si algo no se menciona, usa cadena vacía "" — NUNCA escribas "no se menciona".
-- Si una sección no tiene información, omitirla completamente (campo vacío "").
-- El resultado debe sonar como lo escribe un médico colombiano.
-
-ESTRUCTURA DE LA NOTA DE INGRESO POR TRASLADO:
-
-encabezado — ENCABEZADO:
-"Nota de ingreso por traslado desde [servicio/institución de origen, si se menciona]."
-Si no se menciona el origen, escribir solo: "Nota de ingreso por traslado."
-
-cursoPrevio — RESUMEN DEL CURSO PREVIO (3-5 líneas desde el CONTEXTO BASE):
-"Paciente [masculino/femenino] de [X] años con antecedente de [X], quien se encontraba en [servicio/institución de origen si se menciona] en contexto de [diagnóstico/motivo]. Durante su estancia presentó [eventos relevantes: procedimientos, complicaciones, respuesta al tratamiento]. Recibió manejo con [tratamientos principales]. Se traslada al servicio actual por [motivo del traslado si se menciona]."
-Solo incluir lo que esté disponible en el contexto. Si no hay contexto previo → cadena vacía "".
-
-estadoIngreso — ESTADO AL INGRESO AL SERVICIO ACTUAL (desde la GRABACIÓN):
-Frases clínicas reales según lo mencionado (mismo formato que nota de evolución):
-- "Paciente afebril / con fiebre de X°C al ingreso"
-- "Hemodinámicamente estable / inestable"
-- "Tolerando vía oral / en ayuno"
-- "En ventilación espontánea / con O2 a X L/min / ventilación mecánica"
-- "Con adecuado / sin adecuado gasto urinario"
-Solo incluir lo que el médico mencione. No inventar.
-
-signosVitales — SIGNOS VITALES AL INGRESO (SOLO si se mencionan en la grabación):
-"TA: X/X mmHg | FC: X lpm | FR: X rpm | T°: X°C | SatO2: X% [con/sin O2]"
-Si no se mencionan → cadena vacía "".
-
-examenFisico — EXAMEN FÍSICO AL INGRESO:
-Hallazgos del examen físico al momento de recibir al paciente, desde la grabación.
-Si el médico no examina algún sistema, omitirlo.
-Si no se menciona ningún hallazgo → cadena vacía "".
-
-paraclinicosPrevios — PARACLÍNICOS RELEVANTES DEL ORIGEN (del CONTEXTO BASE):
-"Paraclínicos recientes (servicio de origen):
-- [Examen]: [valor] ([fecha si disponible])"
-Solo los más clínicamente relevantes, no todos. Si no hay contexto → cadena vacía "".
-
-diagnosticos — IMPRESIÓN DIAGNÓSTICA AL INGRESO (contexto + grabación):
-Si hay diagnósticos en el CONTEXTO BASE, CÓPIALOS EXACTAMENTE. Formato obligatorio: un diagnóstico por línea con "- " al inicio de cada uno. Ejemplo: "- Neumonía adquirida en comunidad\n- Hipertensión arterial". Solo modifica si el médico menciona cambios explícitos en la GRABACIÓN.
-Si no hay contexto: "- [Diagnóstico principal]\n- [Diagnóstico secundario]"
-
-planManejo — PLAN DE MANEJO:
-REGLA DE PRESERVACIÓN: Si hay un plan en el CONTEXTO BASE y el médico no menciona cambios, CÓPIALO EXACTAMENTE sin resumir ni reformatear. Si el médico menciona cambios en la GRABACIÓN, añádelos AL FINAL del plan original con una línea "---" separadora.
-Si no hay contexto: genera el plan según la grabación.
-"- Continuar con: [medicamentos del manejo previo que se mantienen]
-- Se modifica: [cambios respecto al manejo anterior]
-- Se solicita: [nuevos paraclínicos, interconsultas, imágenes]
-- Metas de manejo: [objetivos clínicos para este servicio si se mencionan]
-- Criterios de egreso o de nueva remisión si se mencionan"
-
-BLINDAJE DOCUMENTAL (Manual Único de Glosas — Colombia):
-CATEGORÍA A — criterios que SÍ están correctamente documentados en esta nota.
-CATEGORÍA B — alertas SOLO si aplican (mismas reglas que nota de evolución).
-NO generes alertas genéricas ni especulativas.
-
-Responde ÚNICAMENTE en formato JSON:
-{
-  "fechaHora": "Fecha y hora de la nota o fecha actual",
-  "encabezado": "Nota de ingreso por traslado desde [origen si se menciona].",
-  "cursoPrevio": "Resumen del curso previo en el servicio de origen.",
-  "estadoIngreso": "Estado clínico al momento de la recepción en el servicio actual.",
-  "signosVitales": "TA: X/X mmHg | FC: X lpm | FR: X rpm | T°: X°C | SatO2: X%",
-  "examenFisico": "Hallazgos del examen físico al ingreso al servicio actual.",
-  "paraclinicosPrevios": "Paraclínicos recientes del servicio de origen.",
-  "diagnosticos": "1. [Diagnóstico] — [CIE-10]\n2. [Diagnóstico] — [CIE-10]",
-  "planManejo": "Plan de manejo en el servicio actual.",
-  "blindajeDocumental": {
-    "criteriosDocumentados": ["Criterios correctamente documentados en esta nota"],
-    "diagnosticoConSoporteClinico": true,
-    "planCoherenteConDx": true,
-    "posiblesFaltantes": [],
-    "alertasGlosa": ["⚠️ Solo alertas reales y específicas. Array vacío si no hay."]
-  }
-}`
+INSTRUCCIONES ADICIONALES — INGRESO POR TRASLADO:
+Este paciente puede llegar por traslado desde otro servicio, institución, UCI, urgencias, domicilio, etc.
+- Si el CONTEXTO ADICIONAL DEL MÉDICO contiene una historia clínica, epicrisis o nota previa: detecta el servicio o institución de origen si se menciona, y en enfermedadActual indica explícitamente que el paciente viene trasladado, de dónde, y resume en 2-3 líneas el curso clínico previo relevante (motivo de ingreso original, evolución, manejo recibido). En antecedentes, incorpora los antecedentes relevantes de esa nota previa además de lo que el médico dicte ahora en la transcripción.
+- Si NO se proporcionó ninguna nota previa en el CONTEXTO ADICIONAL DEL MÉDICO: genera la nota normalmente solo con lo dicho en la transcripción — NUNCA inventes un servicio de origen o un curso previo que no se mencionó.
+- La ESTRUCTURA JSON es IDÉNTICA a una historia clínica de ingreso estándar. No agregues, quites ni renombres campos.`
 
 const DICTATION_PREFIX = `MODO DE ENTRADA — DICTADO POR MÉDICO:
 El médico está dictando el resumen completo del caso clínico en voz alta. No hay conversación con paciente. Todo el contenido del audio proviene del médico. Construye la nota clínica estructurada basándote en todo lo que dijo el médico, interpretando su relato como la fuente única de toda la información clínica: datos del paciente, síntomas, hallazgos, diagnóstico y plan.
@@ -532,7 +454,6 @@ type GenerateOptions = {
   isTelemedicine?: boolean
   noteType?: NoteType
   recentNotes?: SoapNote[]
-  previousContext?: string
   hospitalizationDay?: number
   isDictation?: boolean
   additionalContext?: string
@@ -631,17 +552,18 @@ async function callClaude(systemPrompt: string, userMessage: string, maxTokens =
 }
 
 export async function generateSoapNote(transcript: string, options: GenerateOptions = {}): Promise<SoapNote> {
-  const { specialty, noteStyle, isTelemedicine, noteType = 'ingreso', recentNotes, previousContext, hospitalizationDay, isDictation, additionalContext } = options
+  const { specialty, noteStyle, isTelemedicine, noteType = 'ingreso', recentNotes, hospitalizationDay, isDictation, additionalContext } = options
   const isEvolution = noteType === 'evolucion'
+  const isTransfer = noteType === 'traslado'
   const isTelemed = noteType === 'telemedicina' || isTelemedicine
 
   if (isEvolution) {
-    return generateEvolutionNote(transcript, { specialty, noteStyle, previousContext, hospitalizationDay, isDictation, additionalContext })
+    return generateEvolutionNote(transcript, { specialty, noteStyle, hospitalizationDay, isDictation, additionalContext })
   }
 
-  if (noteType === 'traslado') {
-    return generateTransferNote(transcript, { specialty, noteStyle, previousContext, isDictation, additionalContext })
-  }
+  // 'traslado' ya no es un modelo distinto — comparte exactamente el mismo
+  // SYSTEM_PROMPT y esquema JSON que 'ingreso'/'telemedicina'. Solo se le agrega
+  // el addon de continuidad asistencial (ver TRANSFER_CONTINUITY_ADDON arriba).
 
   // Build system prompt: base + specialty + note style instruction
   const specialtyAddon = specialty ? (SPECIALTY_ADDONS[specialty] ?? '') : ''
@@ -650,7 +572,8 @@ export async function generateSoapNote(transcript: string, options: GenerateOpti
     : noteStyle === 'lowercase'
     ? '\n\nIMPORTANTE: Genera toda la respuesta JSON en minúsculas. Sin excepción.'
     : ''
-  const systemPrompt = (isDictation ? DICTATION_PREFIX : '') + SYSTEM_PROMPT + specialtyAddon + styleInstruction
+  const systemPrompt = (isDictation ? DICTATION_PREFIX : '') + SYSTEM_PROMPT + specialtyAddon
+    + (isTransfer ? TRANSFER_CONTINUITY_ADDON : '') + styleInstruction
 
   // Sanitize transcript before embedding in the prompt
   const transcripcionLimpia = transcript
@@ -737,7 +660,7 @@ export async function generateSoapNote(transcript: string, options: GenerateOpti
   }
 
   const note: SoapNote = {
-    note_type: isTelemed ? 'telemedicina' : 'ingreso',
+    note_type: isTelemed ? 'telemedicina' : (isTransfer ? 'traslado' : 'ingreso'),
     chief_complaint: (parsed.motivoConsulta as string) || '',
     current_illness: currentIllness,
     relevant_history: (parsed.antecedentes as string) || DEFAULT_ANTECEDENTES,
@@ -762,9 +685,9 @@ export async function generateSoapNote(transcript: string, options: GenerateOpti
 
 async function generateEvolutionNote(
   transcript: string,
-  options: { specialty?: string; noteStyle?: string; previousContext?: string; hospitalizationDay?: number; isDictation?: boolean; additionalContext?: string }
+  options: { specialty?: string; noteStyle?: string; hospitalizationDay?: number; isDictation?: boolean; additionalContext?: string }
 ): Promise<SoapNote> {
-  const { noteStyle, previousContext, hospitalizationDay, isDictation, additionalContext } = options
+  const { noteStyle, hospitalizationDay, isDictation, additionalContext } = options
 
   const styleInstruction = noteStyle === 'uppercase'
     ? '\n\nIMPORTANTE: Genera toda la respuesta JSON en MAYÚSCULAS. Sin excepción.'
@@ -786,10 +709,6 @@ async function generateEvolutionNote(
 
   if (hospitalizationDay) {
     parts.push(`Día de hospitalización: ${hospitalizationDay}`)
-  }
-
-  if (previousContext) {
-    parts.push(`\nNOTA ANTERIOR (CONTEXTO BASE):\n${previousContext}\n--- FIN NOTA ANTERIOR ---`)
   }
 
   if (additionalContext && additionalContext.trim()) {
@@ -856,91 +775,6 @@ async function generateEvolutionNote(
     is_telemedicine: false,
     hospitalization_day: hospitalizationDay ?? 1,
     evolution_date: new Date().toLocaleDateString('es-CO'),
-  }
-
-  return note
-}
-
-async function generateTransferNote(
-  transcript: string,
-  options: { specialty?: string; noteStyle?: string; previousContext?: string; isDictation?: boolean; additionalContext?: string }
-): Promise<SoapNote> {
-  const { noteStyle, previousContext, isDictation, additionalContext } = options
-
-  const styleInstruction = noteStyle === 'uppercase'
-    ? '\n\nIMPORTANTE: Genera toda la respuesta JSON en MAYÚSCULAS. Sin excepción.'
-    : noteStyle === 'lowercase'
-    ? '\n\nIMPORTANTE: Genera toda la respuesta JSON en minúsculas. Sin excepción.'
-    : ''
-
-  const systemPrompt = (isDictation ? DICTATION_PREFIX : '') + TRANSFER_SYSTEM_PROMPT + styleInstruction
-
-  const transcripcionLimpia = transcript
-    .replace(/\\/g, '\\\\')
-    .replace(/"/g, '\\"')
-    .replace(/\n/g, ' ')
-    .replace(/\r/g, ' ')
-    .trim()
-  console.log('[Dictia] Transcripción recibida (traslado):', transcripcionLimpia.slice(0, 300))
-
-  const parts: string[] = []
-
-  if (previousContext) {
-    parts.push(`CONTEXTO BASE (notas del servicio de origen):\n${previousContext}\n--- FIN CONTEXTO BASE ---`)
-  }
-
-  if (additionalContext && additionalContext.trim()) {
-    parts.push(`\nCONTEXTO ADICIONAL DEL MÉDICO:\n${additionalContext.trim()}\n--- FIN CONTEXTO ADICIONAL ---`)
-  }
-
-  parts.push(`\nGRABACIÓN AL INGRESO (transcripción del médico al recibir al paciente):\n\n${transcripcionLimpia}`)
-
-  const userMessage = parts.join('\n')
-  console.log('[Dictia] Prompt enviado a Anthropic (traslado):', userMessage.slice(0, 500))
-  let raw = await callClaude(systemPrompt, userMessage, 4500)
-  let parsed = tryParseJson(raw)
-  if (!parsed) {
-    console.log('[Dictia] Traslado: primer intento falló, reintentando con hint JSON...')
-    const retryMessage = userMessage + '\n\nResponde ÚNICAMENTE con el JSON válido, sin texto adicional, sin backticks, sin markdown.'
-    raw = await callClaude(systemPrompt, retryMessage, 4500)
-    parsed = tryParseJson(raw)
-    if (!parsed) throw new Error('No se pudo procesar la nota de traslado. Intenta de nuevo.')
-  }
-
-  const rawShield = parsed.blindajeDocumental as Record<string, unknown> | undefined
-  const glosaShield: GlosaShield | undefined = rawShield
-    ? {
-        criterios_documentados: Array.isArray(rawShield.criteriosDocumentados) ? rawShield.criteriosDocumentados as string[] : [],
-        diagnostico_con_soporte: Boolean(rawShield.diagnosticoConSoporteClinico ?? true),
-        plan_coherente: Boolean(rawShield.planCoherenteConDx ?? true),
-        posibles_faltantes: Array.isArray(rawShield.posiblesFaltantes) ? rawShield.posiblesFaltantes as string[] : [],
-        alertas_glosa: Array.isArray(rawShield.alertasGlosa) ? rawShield.alertasGlosa as string[] : [],
-      }
-    : undefined
-
-  const encabezado = (parsed.encabezado as string) || ''
-  const estadoIngreso = (parsed.estadoIngreso as string) || ''
-  const currentIllnessFull = [encabezado, estadoIngreso].filter(Boolean).join('\n\n')
-
-  const note: SoapNote = {
-    note_type: 'traslado',
-    chief_complaint: '',
-    current_illness: currentIllnessFull,
-    relevant_history: (parsed.cursoPrevio as string) || '',
-    physical_exam: (parsed.examenFisico as string) || '',
-    physical_exam_is_default: false,
-    analysis: (parsed.diagnosticos as string) || '',
-    diagnosis: (parsed.diagnosticos as string) || '',
-    cie10_code: '',
-    cie10_description: '',
-    management_plan: (parsed.planManejo as string) || '',
-    patient_instructions: '',
-    glosa_shield: glosaShield,
-    is_telemedicine: false,
-    active_diagnoses: (parsed.diagnosticos as string) || '',
-    vital_signs: (parsed.signosVitales as string) || '',
-    labs: (parsed.paraclinicosPrevios as string) || '',
-    evolution_date: (parsed.fechaHora as string) || new Date().toLocaleDateString('es-CO'),
   }
 
   return note
@@ -1116,54 +950,12 @@ export function formatNoteForClipboard(note: SoapNote): string {
     return lines.filter(l => l !== undefined).join('\n')
   }
 
-  // Transfer note format
-  if (note.note_type === 'traslado') {
-    const lines = [
-      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-      'NOTA DE INGRESO POR TRASLADO — DICTIA AI',
-      `${note.evolution_date || date}`,
-      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-    ]
-
-    if (note.current_illness) {
-      lines.push('', 'ESTADO AL INGRESO', note.current_illness)
-    }
-
-    if (note.relevant_history) {
-      lines.push('', 'RESUMEN DEL CURSO PREVIO', note.relevant_history)
-    }
-
-    if (note.vital_signs) {
-      lines.push('', 'SIGNOS VITALES AL INGRESO', note.vital_signs)
-    }
-
-    if (note.physical_exam) {
-      lines.push('', 'EXAMEN FÍSICO AL INGRESO', note.physical_exam)
-    }
-
-    if (note.labs) {
-      lines.push('', 'PARACLÍNICOS DEL SERVICIO DE ORIGEN', note.labs)
-    }
-
-    lines.push(
-      '',
-      'IMPRESIÓN DIAGNÓSTICA',
-      note.active_diagnoses || note.diagnosis || '(Sin diagnósticos registrados)',
-      '',
-      'PLAN EN EL SERVICIO ACTUAL',
-      note.management_plan || '(Sin plan registrado)',
-      '',
-      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-      '📋 Esta nota fue preparada con el apoyo de Dictia AI como asistente de documentación. El médico tratante ha revisado y aprobado su contenido. El juicio clínico final pertenece al médico tratante.',
-      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-    )
-    return lines.filter(l => l !== undefined).join('\n')
-  }
-
-  // Standard SOAP note format
+  // Standard SOAP note format — also used for 'traslado' (unificado con ingreso)
   const lines = [
     '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-    note.is_telemedicine ? 'HISTORIA CLÍNICA — DICTIA AI (TELEMEDICINA)' : 'HISTORIA CLÍNICA — DICTIA AI',
+    note.note_type === 'traslado'
+      ? 'HISTORIA CLÍNICA DE INGRESO POR TRASLADO — DICTIA AI'
+      : note.is_telemedicine ? 'HISTORIA CLÍNICA — DICTIA AI (TELEMEDICINA)' : 'HISTORIA CLÍNICA — DICTIA AI',
     `Fecha: ${date}`,
     '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
     '',

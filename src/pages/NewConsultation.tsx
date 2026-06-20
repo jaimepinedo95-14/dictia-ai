@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import {
   Mic, Square, CheckCircle, Copy, Edit3, Trash2, AlertTriangle,
   ChevronDown, ChevronUp, Zap, RefreshCw, MicOff, Pill, Wifi, Shield,
-  MessageCircle, BookOpen, Send, Monitor, ClipboardList, X, Globe, Smartphone, Usb,
+  MessageCircle, BookOpen, Send, Monitor, X, Globe, Smartphone, Usb,
 } from 'lucide-react'
 import AppShell from '../components/AppShell'
 import { useAuth } from '../contexts/AuthContext'
@@ -60,16 +60,6 @@ const EVOLUTION_SOAP_SECTIONS_BEFORE: SoapSection[] = [
   { key: 'vital_signs', label: 'Signos vitales', icon: '📊', multiline: false, placeholder: 'TA: _/_ mmHg · FC: _ lpm · FR: _ rpm · SatO2: _% · T: _°C', alwaysShow: true },
   { key: 'physical_exam', label: 'Examen físico del día', icon: '🩺', multiline: true, placeholder: 'Hallazgos del día', alwaysShow: true },
   { key: 'analysis', label: 'Análisis clínico', icon: '🧠', multiline: true, placeholder: 'No registrado' },
-]
-
-const TRANSFER_SECTIONS: SoapSection[] = [
-  { key: 'current_illness', label: 'Estado al ingreso', icon: '🚑', multiline: true, placeholder: 'Estado clínico al momento de la recepción', alwaysShow: true },
-  { key: 'relevant_history', label: 'Resumen del curso previo', icon: '📁', multiline: true, placeholder: 'Manejo en el servicio de origen', alwaysShow: true },
-  { key: 'vital_signs', label: 'Signos vitales al ingreso', icon: '📊', multiline: false, placeholder: 'TA: _/_ mmHg · FC: _ lpm · FR: _ rpm · T°: _°C · SatO2: _%' },
-  { key: 'physical_exam', label: 'Examen físico al ingreso', icon: '🩺', multiline: true, placeholder: 'Hallazgos al recibir al paciente', alwaysShow: true },
-  { key: 'labs', label: 'Paraclínicos del servicio de origen', icon: '🧪', multiline: true, placeholder: 'Sin resultados relevantes' },
-  { key: 'analysis', label: 'Impresión diagnóstica', icon: '🧠', multiline: true, placeholder: 'No registrado' },
-  { key: 'management_plan', label: 'Plan en el servicio actual', icon: '📋', multiline: true, placeholder: 'Sin plan registrado' },
 ]
 
 // ─── Quick summary (Mejora 4) ──────────────────────────────────────────────────
@@ -773,7 +763,6 @@ export default function NewConsultation() {
   const [pharmaOpen, setPharmaOpen] = useState(false)
   const [noteType, setNoteType] = useState<NoteType>('ingreso')
   const [specialtyOverride, setSpecialtyOverride] = useState(profile?.specialty ?? '')
-  const [previousContext, setPreviousContext] = useState('')
   const [hospitalizationDay, setHospitalizationDay] = useState(1)
   const [voiceLevel, setVoiceLevel] = useState(0)
   const [silenceCountdown, setSilenceCountdown] = useState<number | null>(null)
@@ -1199,7 +1188,6 @@ export default function NewConsultation() {
           noteType: effectiveType,
           isTelemedicine: effectiveType === 'telemedicina',
           recentNotes: recentNotes.length > 0 ? recentNotes : undefined,
-          previousContext: previousContext || undefined,
           hospitalizationDay: effectiveType === 'evolucion' ? hospitalizationDay : undefined,
           isDictation: recordingMode === 'dictado',
           additionalContext: additionalContext || undefined,
@@ -1420,10 +1408,10 @@ export default function NewConsultation() {
       <textarea
         value={additionalContext}
         onChange={e => setAdditionalContext(e.target.value)}
-        placeholder="Agrega antecedentes, resultados de paraclínicos, nota anterior, o instrucciones específicas para la nota..."
+        placeholder="Agrega antecedentes, resultados de paraclínicos, nota anterior, instrucciones específicas..."
         className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-transparent transition-all text-sm leading-relaxed resize-none"
-        rows={3}
-        maxLength={5000}
+        rows={4}
+        maxLength={20000}
       />
     </div>
   )
@@ -1604,45 +1592,6 @@ export default function NewConsultation() {
                   </div>
                 </div>
 
-                {/* Notas previas del paciente (evolución y traslado) */}
-                {(noteType === 'evolucion' || noteType === 'traslado') && (
-                  <div className="rounded-2xl border-2 border-violet-200 bg-violet-50 overflow-hidden">
-                    <div className="px-4 py-3 border-b border-violet-200 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <ClipboardList size={15} className="text-violet-600" />
-                        <span className="text-sm font-semibold text-violet-800">
-                          {noteType === 'traslado' ? 'Notas del servicio de origen' : 'Notas previas del paciente'}
-                        </span>
-                        {previousContext.trim() && (
-                          <span className="text-xs bg-violet-600 text-white px-2 py-0.5 rounded-full font-medium">Lista</span>
-                        )}
-                      </div>
-                      {previousContext.trim() && (
-                        <button
-                          onClick={() => setPreviousContext('')}
-                          className="text-xs text-violet-400 hover:text-violet-700 transition-colors"
-                        >
-                          Limpiar
-                        </button>
-                      )}
-                    </div>
-                    <div className="p-4 space-y-3">
-                      <textarea
-                        value={previousContext}
-                        onChange={e => setPreviousContext(e.target.value)}
-                        placeholder={noteType === 'traslado'
-                          ? 'Pegue aquí notas del servicio de origen: nota de egreso, resumen de UCI, epicrisis parcial, evoluciones previas, o cualquier nota del manejo anterior. Puede pegar varias notas seguidas.'
-                          : 'Pegue aquí notas previas de este paciente: evoluciones, nota de ingreso, resumen de otro servicio o institución, o cualquier nota anterior. Puede pegar varias notas seguidas.'}
-                        className="w-full px-3 py-2.5 rounded-xl border border-violet-200 bg-white text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent transition-all text-xs leading-relaxed resize-none font-mono"
-                        rows={10}
-                        maxLength={50000}
-                      />
-                      <p className="text-xs text-violet-600 leading-relaxed">
-                        💡 Entre más contexto pegue, más completa será la nota generada. Puede pegar notas de varios días o de distintos servicios.
-                      </p>
-                    </div>
-                  </div>
-                )}
               </div>
             )}
 
@@ -2026,35 +1975,7 @@ export default function NewConsultation() {
               </div>
             )}
 
-            {/* ── TRANSFER NOTE LAYOUT ── */}
-            {isTransfer ? (
-              <>
-                <div className="text-white rounded-2xl p-5 bg-amber-600">
-                  <p className="text-amber-200 text-xs font-bold uppercase tracking-wider mb-1">🚑 Ingreso por traslado</p>
-                  <h2 className="text-xl font-bold">Nota de ingreso por traslado</h2>
-                  {note.evolution_date && (
-                    <p className="text-amber-200 text-sm mt-1">{note.evolution_date}</p>
-                  )}
-                </div>
-                <div className="space-y-3">
-                  {TRANSFER_SECTIONS.map(section => (
-                    <SoapCard
-                      key={section.key}
-                      section={section}
-                      note={note}
-                      editingKey={editingKey}
-                      editValue={editValue}
-                      expandedSection={expandedSection}
-                      onEdit={startEdit}
-                      onSave={saveEdit}
-                      onCancelEdit={() => setEditingKey(null)}
-                      onEditValueChange={setEditValue}
-                      onToggleExpand={(key) => setExpandedSection(expandedSection === key ? null : key)}
-                    />
-                  ))}
-                </div>
-              </>
-            ) : isEvolution ? (
+            {isEvolution ? (
               <>
                 {/* Evolution header */}
                 <div className="text-white rounded-2xl p-5 bg-violet-600">
