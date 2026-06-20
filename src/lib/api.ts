@@ -407,12 +407,16 @@ export function isAnthropicConfigured(): boolean {
   return Boolean(ANTHROPIC_API_KEY && !ANTHROPIC_API_KEY.includes('aqui_va'))
 }
 
+const GROQ_MEDICAL_PROMPT = 'Consulta médica en español colombiano. Terminología clínica: paciente, diagnóstico, tratamiento, medicamento, dosis, tensión arterial, frecuencia cardíaca, saturación de oxígeno, temperatura, examen físico, antecedentes, enfermedad actual, revisión por sistemas, plan de manejo, fórmula médica, paraclínicos, interconsulta, egreso, traslado, evolución, ingreso, historia clínica, nota de enfermería, signos vitales, cardiopulmonar, abdomen, extremidades, neurológico, cefalea, disnea, dolor torácico, náuseas, vómito, diarrea, fiebre, hipertensión, diabetes, EPOC, insuficiencia cardíaca, infección urinaria, neumonía.'
+
 async function groqTranscribeAttempt(audioBlob: Blob, model: string, withLanguage: boolean): Promise<string> {
   const ext = audioBlob.type.includes('mp4') ? 'mp4' : 'webm'
   const formData = new FormData()
   formData.append('file', audioBlob, `audio.${ext}`)
   formData.append('model', model)
   if (withLanguage) formData.append('language', 'es')
+  formData.append('prompt', GROQ_MEDICAL_PROMPT)
+  formData.append('temperature', '0')
   formData.append('response_format', 'text')
 
   console.log(`[Dictia] Groq intento — model: ${model}, language: ${withLanguage}, ext: ${ext}, size: ${audioBlob.size}`)
