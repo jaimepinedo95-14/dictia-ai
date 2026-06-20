@@ -191,6 +191,13 @@ export async function deductClinicCredit(clinicaId: string, amount: number, desc
 //     for select using (auth.jwt() ->> 'email' = 'jaimepinedo95@gmail.com' OR auth.uid() = id);
 //   create policy "Super admin updates all profiles" on public.user_profiles
 //     for update using (auth.jwt() ->> 'email' = 'jaimepinedo95@gmail.com' OR auth.uid() = id);
+//
+// fetchAllConsultationsList (panel /admin/super, pestaña "Consultas") también necesita
+// que el super admin pueda leer TODAS las filas de consultations (no solo las propias).
+// Si la tabla solo tiene la policy "Users can view own consultations" (auth.uid() = user_id),
+// agrega esta también en el SQL Editor de Supabase:
+//   create policy "Super admin reads all consultations" on public.consultations
+//     for select using (auth.jwt() ->> 'email' = 'jaimepinedo95@gmail.com' OR auth.uid() = user_id);
 
 export type UserSummary = {
   id: string
@@ -353,6 +360,52 @@ export async function fetchNotesBySpecialty(): Promise<SpecialtyCount[]> {
   return Object.entries(counts).map(([specialty, count]) => ({ specialty, count }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 8)
+}
+
+export type ConsultationSummary = {
+  id: string
+  created_at: string
+  note_type: string | null
+  specialty: string | null
+  doctor_name: string
+  doctor_email: string
+}
+
+const MOCK_CONSULTATIONS: ConsultationSummary[] = [
+  { id: 'mock-c-1', created_at: new Date(Date.now() - 2 * 3600000).toISOString(), note_type: 'ingreso', specialty: 'Medicina General', doctor_name: 'Dr. Carlos Mendoza', doctor_email: 'carlos.mendoza@example.com' },
+  { id: 'mock-c-2', created_at: new Date(Date.now() - 5 * 3600000).toISOString(), note_type: 'evolucion', specialty: 'Medicina Interna', doctor_name: 'Dr. Roberto Silva', doctor_email: 'roberto.silva@example.com' },
+  { id: 'mock-c-3', created_at: new Date(Date.now() - 26 * 3600000).toISOString(), note_type: 'telemedicina', specialty: 'Pediatría', doctor_name: 'Dra. Patricia López', doctor_email: 'patricia.lopez@example.com' },
+]
+
+export async function fetchAllConsultationsList(limit = 100): Promise<ConsultationSummary[]> {
+  if (!isSupabaseConfigured) return MOCK_CONSULTATIONS
+  const { data, error } = await supabase
+    .from('consultations')
+    .select('id, created_at, note_type, specialty, user:user_profiles(full_name, email)')
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  if (error) {
+    console.error('[Dictia] fetchAllConsultationsList:', error.message)
+    return []
+  }
+  type Row = {
+    id: string
+    created_at: string
+    note_type: string | null
+    specialty: string | null
+    user: { full_name: string | null; email: string | null } | { full_name: string | null; email: string | null }[] | null
+  }
+  return ((data ?? []) as Row[]).map(row => {
+    const u = Array.isArray(row.user) ? row.user[0] : row.user
+    return {
+      id: row.id,
+      created_at: row.created_at,
+      note_type: row.note_type,
+      specialty: row.specialty,
+      doctor_name: u?.full_name || '(sin nombre)',
+      doctor_email: u?.email || '—',
+    }
+  })
 }
 
 export async function fetchNotesByDay(): Promise<DayCount[]> {

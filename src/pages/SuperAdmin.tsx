@@ -8,13 +8,21 @@ import AppShell from '../components/AppShell'
 import { useAuth } from '../contexts/AuthContext'
 import {
   fetchAllUsers, fetchAllClinics, fetchCreditHistory, updateUserPlan, grantFreeAccess,
-  MOCK_CREDIT_TRANSACTIONS,
+  fetchAllConsultationsList, MOCK_CREDIT_TRANSACTIONS,
 } from '../lib/adminDb'
-import type { UserSummary } from '../lib/adminDb'
+import type { UserSummary, ConsultationSummary } from '../lib/adminDb'
 import type { Clinica, CreditTransaction } from '../lib/supabase'
 
 const PLAN_NAMES: Record<string, string> = {
   basic: 'Básico', standard: 'Estándar', advanced: 'Avanzado', pro: 'Pro', free_trial: 'Trial',
+}
+
+const PLAN_PRICES_COP: Record<string, number> = {
+  basic: 39900, standard: 64900, advanced: 89900, pro: 109900,
+}
+
+const NOTE_TYPE_LABELS: Record<string, string> = {
+  ingreso: 'HC Ingreso', evolucion: 'Nota Evolución', telemedicina: 'Telemedicina', traslado: 'Ing. Traslado',
 }
 
 const PLAN_OPTIONS = [
@@ -53,9 +61,10 @@ function StatCard({ icon: Icon, label, value, color }: {
 
 export default function SuperAdmin() {
   const { profile } = useAuth()
-  const [tab, setTab] = useState<'users' | 'clinics'>('users')
+  const [tab, setTab] = useState<'users' | 'consultas' | 'clinics'>('users')
   const [users, setUsers] = useState<UserSummary[]>([])
   const [clinicas, setClinicas] = useState<Clinica[]>([])
+  const [consultas, setConsultas] = useState<ConsultationSummary[]>([])
   const [activityLog, setActivityLog] = useState<CreditTransaction[]>([])
   const [loading, setLoading] = useState(true)
   const [planMap, setPlanMap] = useState<Record<string, string>>({})
@@ -65,9 +74,10 @@ export default function SuperAdmin() {
   const [newClinicEmail, setNewClinicEmail] = useState('')
 
   useEffect(() => {
-    Promise.all([fetchAllUsers(), fetchAllClinics()]).then(async ([usersData, clinicsData]) => {
+    Promise.all([fetchAllUsers(), fetchAllClinics(), fetchAllConsultationsList()]).then(async ([usersData, clinicsData, consultasData]) => {
       setUsers(usersData)
       setClinicas(clinicsData)
+      setConsultas(consultasData)
       const map: Record<string, string> = {}
       usersData.forEach(u => { map[u.id] = u.plan_seleccionado ?? 'standard' })
       setPlanMap(map)
@@ -89,6 +99,9 @@ export default function SuperAdmin() {
   const pendingUsers  = users.filter(u => !u.subscription_status || u.subscription_status === 'pending').length
   const totalNotes    = users.reduce((s, u) => s + (u.consultations_used ?? 0), 0)
   const newThisWeek   = users.filter(u => new Date(u.created_at) > new Date(Date.now() - 7 * 86400000)).length
+  const estimatedRevenue = users
+    .filter(u => u.subscription_status === 'active')
+    .reduce((s, u) => s + (PLAN_PRICES_COP[u.plan_seleccionado ?? u.plan] ?? 0), 0)
 
   const totalCredits     = clinicas.reduce((s, c) => s + c.creditos_totales, 0)
   const totalUsedCredits = clinicas.reduce((s, c) => s + (c.creditos_totales - c.creditos_disponibles), 0)
@@ -134,8 +147,9 @@ export default function SuperAdmin() {
         {/* Tabs */}
         <div className="flex gap-1 bg-slate-100 rounded-xl p-1 w-fit">
           {([
-            { id: 'users',  label: `Usuarios (${totalUsers})`,      Icon: Users },
-            { id: 'clinics', label: `Clínicas (${clinicas.length})`, Icon: Building2 },
+            { id: 'users',    label: `Usuarios (${totalUsers})`,      Icon: Users },
+            { id: 'consultas', label: `Consultas (${consultas.length})`, Icon: Activity },
+            { id: 'clinics',  label: `Clínicas (${clinicas.length})`, Icon: Building2 },
           ] as const).map(({ id, label, Icon }) => (
             <button
               key={id}
@@ -153,11 +167,12 @@ export default function SuperAdmin() {
         {tab === 'users' && (
           <>
             {/* Stats */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
               <StatCard icon={Users}      label="Registrados"      value={totalUsers}                            color="bg-primary-500" />
               <StatCard icon={Activity}   label="Con acceso activo" value={activeUsers}                           color="bg-emerald-500" />
               <StatCard icon={Clock}      label="Pendientes"        value={pendingUsers}                          color="bg-amber-500" />
               <StatCard icon={TrendingUp} label="Notas generadas"   value={totalNotes.toLocaleString('es-CO')}    color="bg-blue-500" />
+              <StatCard icon={TrendingUp} label="Ingresos estimados/mes" value={`$${estimatedRevenue.toLocaleString('es-CO')}`} color="bg-violet-500" />
             </div>
 
             {newThisWeek > 0 && (
@@ -279,6 +294,56 @@ export default function SuperAdmin() {
             </div>
 
           </>
+        )}
+
+        {/* ══ CONSULTAS TAB ══════════════════════════════════════════════════════ */}
+        {tab === 'consultas' && (
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <h2 className="font-bold text-slate-900">Consultas generadas</h2>
+              <span className="text-xs text-slate-400">{consultas.length} más recientes</span>
+            </div>
+
+            {loading ? (
+              <div className="p-10 text-center text-slate-400">Cargando consultas...</div>
+            ) : consultas.length === 0 ? (
+              <div className="p-10 text-center text-slate-400">
+                <p className="font-medium">Sin consultas registradas</p>
+                <p className="text-xs mt-1">Aún no hay consultas generadas en la plataforma.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-100 bg-slate-50 text-left">
+                      {['Fecha', 'Tipo de nota', 'Médico', 'Especialidad'].map(h => (
+                        <th key={h} className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {consultas.map(c => (
+                      <tr key={c.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-5 py-4 text-xs text-slate-500 whitespace-nowrap">
+                          {new Date(c.created_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </td>
+                        <td className="px-5 py-4">
+                          <span className="inline-flex text-xs font-semibold px-2.5 py-1 rounded-full bg-primary-50 text-primary-700">
+                            {NOTE_TYPE_LABELS[c.note_type ?? ''] ?? c.note_type ?? '—'}
+                          </span>
+                        </td>
+                        <td className="px-5 py-4">
+                          <p className="font-medium text-slate-900">{c.doctor_name}</p>
+                          <p className="text-xs text-slate-400">{c.doctor_email}</p>
+                        </td>
+                        <td className="px-5 py-4 text-sm text-slate-600">{c.specialty || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         )}
 
         {/* ══ CLÍNICAS TAB ══════════════════════════════════════════════════════ */}
