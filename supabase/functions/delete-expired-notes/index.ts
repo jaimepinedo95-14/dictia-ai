@@ -8,8 +8,8 @@
 // siga viendo su conteo de historial/estadísticas de uso.
 //
 // Configurar en Supabase Dashboard → Edge Functions → Secrets:
-//   SUPABASE_URL              = https://xxxx.supabase.co
-//   SUPABASE_SERVICE_ROLE_KEY = eyJxxxxx (service role, no anon)
+//   DB_URL          = https://xxxx.supabase.co
+//   SERVICE_ROLE_KEY = eyJxxxxx (service role, no anon)
 //
 // Configurar el cron en Supabase Dashboard → Edge Functions → delete-expired-notes → Schedule:
 //   Cron expression: 0 * * * *  (cada hora)
@@ -17,8 +17,8 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
-const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const SUPABASE_URL = Deno.env.get('DB_URL')!
+const SERVICE_KEY = Deno.env.get('SERVICE_ROLE_KEY')!
 
 const supabase = createClient(SUPABASE_URL, SERVICE_KEY)
 
