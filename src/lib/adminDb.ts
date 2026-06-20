@@ -215,7 +215,7 @@ export type UserSummary = {
 }
 
 const PLAN_LIMITS: Record<string, number> = {
-  basic: 100, standard: 250, advanced: 350, pro: 500, free_trial: 10,
+  basic: 100, standard: 250, advanced: 350, pro: 500, free_trial: 10, gratis: 999999,
 }
 
 export const MOCK_USERS: UserSummary[] = [
@@ -367,21 +367,22 @@ export type ConsultationSummary = {
   created_at: string
   note_type: string | null
   specialty: string | null
+  status: string | null
   doctor_name: string
   doctor_email: string
 }
 
 const MOCK_CONSULTATIONS: ConsultationSummary[] = [
-  { id: 'mock-c-1', created_at: new Date(Date.now() - 2 * 3600000).toISOString(), note_type: 'ingreso', specialty: 'Medicina General', doctor_name: 'Dr. Carlos Mendoza', doctor_email: 'carlos.mendoza@example.com' },
-  { id: 'mock-c-2', created_at: new Date(Date.now() - 5 * 3600000).toISOString(), note_type: 'evolucion', specialty: 'Medicina Interna', doctor_name: 'Dr. Roberto Silva', doctor_email: 'roberto.silva@example.com' },
-  { id: 'mock-c-3', created_at: new Date(Date.now() - 26 * 3600000).toISOString(), note_type: 'telemedicina', specialty: 'Pediatría', doctor_name: 'Dra. Patricia López', doctor_email: 'patricia.lopez@example.com' },
+  { id: 'mock-c-1', created_at: new Date(Date.now() - 2 * 3600000).toISOString(), note_type: 'ingreso', specialty: 'Medicina General', status: 'approved', doctor_name: 'Dr. Carlos Mendoza', doctor_email: 'carlos.mendoza@example.com' },
+  { id: 'mock-c-2', created_at: new Date(Date.now() - 5 * 3600000).toISOString(), note_type: 'evolucion', specialty: 'Medicina Interna', status: 'approved', doctor_name: 'Dr. Roberto Silva', doctor_email: 'roberto.silva@example.com' },
+  { id: 'mock-c-3', created_at: new Date(Date.now() - 26 * 3600000).toISOString(), note_type: 'telemedicina', specialty: 'Pediatría', status: 'discarded', doctor_name: 'Dra. Patricia López', doctor_email: 'patricia.lopez@example.com' },
 ]
 
-export async function fetchAllConsultationsList(limit = 100): Promise<ConsultationSummary[]> {
+export async function fetchAllConsultationsList(limit = 200): Promise<ConsultationSummary[]> {
   if (!isSupabaseConfigured) return MOCK_CONSULTATIONS
   const { data, error } = await supabase
     .from('consultations')
-    .select('id, created_at, note_type, specialty, user:user_profiles(full_name, email)')
+    .select('id, created_at, note_type, specialty, status, user:user_profiles(full_name, email)')
     .order('created_at', { ascending: false })
     .limit(limit)
   if (error) {
@@ -393,6 +394,7 @@ export async function fetchAllConsultationsList(limit = 100): Promise<Consultati
     created_at: string
     note_type: string | null
     specialty: string | null
+    status: string | null
     user: { full_name: string | null; email: string | null } | { full_name: string | null; email: string | null }[] | null
   }
   return ((data ?? []) as Row[]).map(row => {
@@ -402,10 +404,32 @@ export async function fetchAllConsultationsList(limit = 100): Promise<Consultati
       created_at: row.created_at,
       note_type: row.note_type,
       specialty: row.specialty,
+      status: row.status,
       doctor_name: u?.full_name || '(sin nombre)',
       doctor_email: u?.email || '—',
     }
   })
+}
+
+// Conteo de consultas del mes en curso por usuario — para la columna
+// "Notas usadas este mes" del panel Super Admin (separado del contador
+// histórico consultations_used que vive en user_profiles).
+export async function fetchMonthlyConsultationCounts(): Promise<Record<string, number>> {
+  if (!isSupabaseConfigured) return {}
+  const firstOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
+  const { data, error } = await supabase
+    .from('consultations')
+    .select('user_id')
+    .gte('created_at', firstOfMonth)
+  if (error) {
+    console.error('[Dictia] fetchMonthlyConsultationCounts:', error.message)
+    return {}
+  }
+  const counts: Record<string, number> = {}
+  ;((data ?? []) as { user_id: string }[]).forEach(r => {
+    counts[r.user_id] = (counts[r.user_id] ?? 0) + 1
+  })
+  return counts
 }
 
 export async function fetchNotesByDay(): Promise<DayCount[]> {

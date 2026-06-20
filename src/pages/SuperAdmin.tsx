@@ -2,19 +2,20 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Users, Building2, TrendingUp, Plus, ArrowLeft, Activity,
-  AlertTriangle, Clock, ShieldCheck, Gift,
+  AlertTriangle, Clock, ShieldCheck, CalendarDays, FileText,
 } from 'lucide-react'
 import AppShell from '../components/AppShell'
 import { useAuth } from '../contexts/AuthContext'
 import {
-  fetchAllUsers, fetchAllClinics, fetchCreditHistory, updateUserPlan, grantFreeAccess,
-  fetchAllConsultationsList, MOCK_CREDIT_TRANSACTIONS,
+  fetchAllUsers, fetchAllClinics, fetchCreditHistory, updateUserPlan,
+  fetchAllConsultationsList, fetchMonthlyConsultationCounts, fetchNotesStats,
+  MOCK_CREDIT_TRANSACTIONS,
 } from '../lib/adminDb'
 import type { UserSummary, ConsultationSummary } from '../lib/adminDb'
 import type { Clinica, CreditTransaction } from '../lib/supabase'
 
 const PLAN_NAMES: Record<string, string> = {
-  basic: 'Básico', standard: 'Estándar', advanced: 'Avanzado', pro: 'Pro', free_trial: 'Trial',
+  gratis: 'Free', basic: 'Básico', standard: 'Estándar', advanced: 'Avanzado', pro: 'Pro', free_trial: 'Trial',
 }
 
 const PLAN_PRICES_COP: Record<string, number> = {
@@ -25,7 +26,15 @@ const NOTE_TYPE_LABELS: Record<string, string> = {
   ingreso: 'HC Ingreso', evolucion: 'Nota Evolución', telemedicina: 'Telemedicina', traslado: 'Ing. Traslado',
 }
 
+const NOTE_STATUS_MAP: Record<string, { label: string; cls: string }> = {
+  approved:   { label: 'Aprobada',   cls: 'bg-emerald-100 text-emerald-700' },
+  completed:  { label: 'Pendiente',  cls: 'bg-amber-100 text-amber-700' },
+  processing: { label: 'En proceso', cls: 'bg-blue-100 text-blue-700' },
+  discarded:  { label: 'Descartada', cls: 'bg-red-100 text-red-600' },
+}
+
 const PLAN_OPTIONS = [
+  { id: 'gratis', label: 'Free — $0/mes' },
   { id: 'basic', label: 'Básico — $39.900/mes' },
   { id: 'standard', label: 'Estándar — $64.900/mes' },
   { id: 'advanced', label: 'Avanzado — $89.900/mes' },
@@ -65,6 +74,8 @@ export default function SuperAdmin() {
   const [users, setUsers] = useState<UserSummary[]>([])
   const [clinicas, setClinicas] = useState<Clinica[]>([])
   const [consultas, setConsultas] = useState<ConsultationSummary[]>([])
+  const [monthlyCounts, setMonthlyCounts] = useState<Record<string, number>>({})
+  const [notesStats, setNotesStats] = useState({ today: 0, month: 0, total: 0 })
   const [activityLog, setActivityLog] = useState<CreditTransaction[]>([])
   const [loading, setLoading] = useState(true)
   const [planMap, setPlanMap] = useState<Record<string, string>>({})
@@ -74,10 +85,18 @@ export default function SuperAdmin() {
   const [newClinicEmail, setNewClinicEmail] = useState('')
 
   useEffect(() => {
-    Promise.all([fetchAllUsers(), fetchAllClinics(), fetchAllConsultationsList()]).then(async ([usersData, clinicsData, consultasData]) => {
+    Promise.all([
+      fetchAllUsers(),
+      fetchAllClinics(),
+      fetchAllConsultationsList(),
+      fetchMonthlyConsultationCounts(),
+      fetchNotesStats(),
+    ]).then(async ([usersData, clinicsData, consultasData, monthlyData, statsData]) => {
       setUsers(usersData)
       setClinicas(clinicsData)
       setConsultas(consultasData)
+      setMonthlyCounts(monthlyData)
+      setNotesStats(statsData)
       const map: Record<string, string> = {}
       usersData.forEach(u => { map[u.id] = u.plan_seleccionado ?? 'standard' })
       setPlanMap(map)
@@ -97,7 +116,6 @@ export default function SuperAdmin() {
   const totalUsers    = users.length
   const activeUsers   = users.filter(u => u.subscription_status === 'trial' || u.subscription_status === 'active').length
   const pendingUsers  = users.filter(u => !u.subscription_status || u.subscription_status === 'pending').length
-  const totalNotes    = users.reduce((s, u) => s + (u.consultations_used ?? 0), 0)
   const newThisWeek   = users.filter(u => new Date(u.created_at) > new Date(Date.now() - 7 * 86400000)).length
   const estimatedRevenue = users
     .filter(u => u.subscription_status === 'active')
@@ -114,16 +132,7 @@ export default function SuperAdmin() {
     try {
       await updateUserPlan(userId, plan)
       setUsers(prev => prev.map(u => u.id === userId
-        ? { ...u, plan_seleccionado: plan, plan, subscription_status: 'active' } : u))
-    } finally { setUpdatingId(null) }
-  }
-
-  async function applyFreeAccess(userId: string) {
-    setUpdatingId(userId + '_free')
-    try {
-      await grantFreeAccess(userId)
-      setUsers(prev => prev.map(u => u.id === userId
-        ? { ...u, subscription_status: 'active', consultations_limit: 999999 } : u))
+        ? { ...u, plan_seleccionado: plan, plan, subscription_status: 'active', consultations_limit: plan === 'gratis' ? 999999 : u.consultations_limit } : u))
     } finally { setUpdatingId(null) }
   }
 
@@ -168,11 +177,11 @@ export default function SuperAdmin() {
           <>
             {/* Stats */}
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-              <StatCard icon={Users}      label="Registrados"      value={totalUsers}                            color="bg-primary-500" />
-              <StatCard icon={Activity}   label="Con acceso activo" value={activeUsers}                           color="bg-emerald-500" />
-              <StatCard icon={Clock}      label="Pendientes"        value={pendingUsers}                          color="bg-amber-500" />
-              <StatCard icon={TrendingUp} label="Notas generadas"   value={totalNotes.toLocaleString('es-CO')}    color="bg-blue-500" />
-              <StatCard icon={TrendingUp} label="Ingresos estimados/mes" value={`$${estimatedRevenue.toLocaleString('es-CO')}`} color="bg-violet-500" />
+              <StatCard icon={Users}        label="Usuarios registrados" value={totalUsers}                                  color="bg-primary-500" />
+              <StatCard icon={CalendarDays} label="Notas hoy"            value={notesStats.today.toLocaleString('es-CO')}    color="bg-emerald-500" />
+              <StatCard icon={Activity}     label="Notas este mes"       value={notesStats.month.toLocaleString('es-CO')}    color="bg-blue-500" />
+              <StatCard icon={FileText}     label="Notas históricas"     value={notesStats.total.toLocaleString('es-CO')}    color="bg-slate-500" />
+              <StatCard icon={TrendingUp}   label="Ingresos estimados/mes" value={`$${estimatedRevenue.toLocaleString('es-CO')}`} color="bg-violet-500" />
             </div>
 
             {newThisWeek > 0 && (
@@ -200,7 +209,7 @@ export default function SuperAdmin() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-slate-100 bg-slate-50 text-left">
-                        {['Usuario', 'Estado / Plan', 'Notas', 'Registro', 'Acciones'].map(h => (
+                        {['Usuario', 'Estado / Plan', 'Notas este mes', 'Total histórico', 'Registro', 'Acciones'].map(h => (
                           <th key={h} className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
                         ))}
                       </tr>
@@ -208,7 +217,7 @@ export default function SuperAdmin() {
                     <tbody className="divide-y divide-slate-50">
                       {users.map(u => {
                         const st = STATUS_MAP[u.subscription_status ?? ''] ?? { label: u.subscription_status ?? '—', cls: 'bg-slate-100 text-slate-500' }
-                        const busy = updatingId === u.id || updatingId === u.id + '_free'
+                        const busy = updatingId === u.id
                         return (
                           <tr key={u.id} className="hover:bg-slate-50 transition-colors">
 
@@ -240,12 +249,18 @@ export default function SuperAdmin() {
                               )}
                             </td>
 
-                            {/* Notas */}
+                            {/* Notas este mes */}
+                            <td className="px-5 py-4 text-center">
+                              <p className="text-lg font-black text-slate-900">{monthlyCounts[u.id] ?? 0}</p>
+                              {u.consultations_limit < 999990 && (
+                                <p className="text-xs text-slate-400">/ {u.consultations_limit} del plan</p>
+                              )}
+                            </td>
+
+                            {/* Total histórico */}
                             <td className="px-5 py-4 text-center">
                               <p className="text-lg font-black text-slate-900">{u.consultations_used}</p>
-                              {u.consultations_limit < 999990 && (
-                                <p className="text-xs text-slate-400">/ {u.consultations_limit}</p>
-                              )}
+                              <p className="text-xs text-slate-400">notas totales</p>
                             </td>
 
                             {/* Registro */}
@@ -271,16 +286,7 @@ export default function SuperAdmin() {
                                   disabled={busy}
                                   className="text-xs bg-primary-600 hover:bg-primary-700 disabled:bg-slate-200 text-white font-semibold px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap"
                                 >
-                                  {updatingId === u.id ? '...' : 'Activar'}
-                                </button>
-                                <button
-                                  onClick={() => applyFreeAccess(u.id)}
-                                  disabled={busy}
-                                  title="Acceso gratuito ilimitado"
-                                  className="text-xs bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-200 text-white font-semibold px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap flex items-center gap-1"
-                                >
-                                  <Gift size={11} />
-                                  {updatingId === u.id + '_free' ? '...' : 'Gratis'}
+                                  {busy ? '...' : 'Cambiar plan'}
                                 </button>
                               </div>
                             </td>
@@ -316,29 +322,37 @@ export default function SuperAdmin() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-slate-100 bg-slate-50 text-left">
-                      {['Fecha', 'Tipo de nota', 'Médico', 'Especialidad'].map(h => (
+                      {['Fecha', 'Médico (email)', 'Tipo de nota', 'Especialidad', 'Aprobada'].map(h => (
                         <th key={h} className="px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
-                    {consultas.map(c => (
-                      <tr key={c.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-5 py-4 text-xs text-slate-500 whitespace-nowrap">
-                          {new Date(c.created_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                        </td>
-                        <td className="px-5 py-4">
-                          <span className="inline-flex text-xs font-semibold px-2.5 py-1 rounded-full bg-primary-50 text-primary-700">
-                            {NOTE_TYPE_LABELS[c.note_type ?? ''] ?? c.note_type ?? '—'}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4">
-                          <p className="font-medium text-slate-900">{c.doctor_name}</p>
-                          <p className="text-xs text-slate-400">{c.doctor_email}</p>
-                        </td>
-                        <td className="px-5 py-4 text-sm text-slate-600">{c.specialty || '—'}</td>
-                      </tr>
-                    ))}
+                    {consultas.map(c => {
+                      const ns = NOTE_STATUS_MAP[c.status ?? ''] ?? { label: c.status ?? '—', cls: 'bg-slate-100 text-slate-500' }
+                      return (
+                        <tr key={c.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-5 py-4 text-xs text-slate-500 whitespace-nowrap">
+                            {new Date(c.created_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </td>
+                          <td className="px-5 py-4">
+                            <p className="font-medium text-slate-900">{c.doctor_name}</p>
+                            <p className="text-xs text-slate-400">{c.doctor_email}</p>
+                          </td>
+                          <td className="px-5 py-4">
+                            <span className="inline-flex text-xs font-semibold px-2.5 py-1 rounded-full bg-primary-50 text-primary-700">
+                              {NOTE_TYPE_LABELS[c.note_type ?? ''] ?? c.note_type ?? '—'}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4 text-sm text-slate-600">{c.specialty || '—'}</td>
+                          <td className="px-5 py-4">
+                            <span className={`inline-flex text-xs font-semibold px-2.5 py-1 rounded-full ${ns.cls}`}>
+                              {ns.label}
+                            </span>
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -432,10 +446,10 @@ export default function SuperAdmin() {
                               </span>
                             </div>
                             <div className="flex flex-wrap gap-1.5">
-                              {clinica.modulos_activos.map(m => (
+                              {(clinica.modulos_activos ?? []).map(m => (
                                 <span key={m} className="text-xs bg-primary-50 text-primary-700 px-2 py-0.5 rounded-full">{MODULE_LABELS[m] ?? m}</span>
                               ))}
-                              {clinica.ips_autorizadas.length > 0 && (
+                              {(clinica.ips_autorizadas ?? []).length > 0 && (
                                 <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">
                                   🔒 {clinica.ips_autorizadas.length} IP{clinica.ips_autorizadas.length > 1 ? 's' : ''}
                                 </span>
