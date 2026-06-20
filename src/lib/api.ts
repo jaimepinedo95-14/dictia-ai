@@ -30,13 +30,21 @@ REGLA ABSOLUTA — PRIVACIDAD Y ANONIMIZACIÓN (prioridad máxima, no negociable
 - Si durante la consulta el médico o el paciente mencionaron el nombre del paciente o cualquier identificador personal, OMÍTELOS completamente. No los reemplaces ni los enmascaras — simplemente no los incluyas.
 - En todos los campos redacta al paciente como "el paciente", "la paciente", "paciente masculino/femenino de X años" u otras referencias genéricas. NUNCA por su nombre.
 - La edad en años es el único dato demográfico permitido, ya que es necesaria para el contexto clínico.
-- Esta regla aplica a TODOS los campos sin excepción: motivoConsulta, enfermedadActual, antecedentes, analisis, planManejo, instruccionesPaciente y cualquier otro campo libre.
+- Esta regla aplica a TODOS los campos sin excepción: motivoConsulta, enfermedadActual, antecedentes, revisionSistemas, analisis, paraclinicos, planManejo, instruccionesPaciente y cualquier otro campo libre.
 
 INSTRUCCIONES CRÍTICAS:
 - Incluye SOLO información clínicamente relevante. Omite saludos, despedidas y conversación social.
 - Usa terminología médica FORMAL y PRECISA en español latinoamericano neutro.
-- NUNCA inventes información clínica que no fue mencionada en la transcripción.
-- Si no se mencionó un dato, deja ese campo como string vacío "".
+- REGLA ABSOLUTA — NUNCA INVENTES: nunca inventes, infieras, completes ni "rellenes" información clínica que no fue mencionada explícitamente en la transcripción. Si un dato no se mencionó, escribe "No referido" en ese campo o ítem específico — NUNCA lo completes con un valor plausible, típico o esperado para el cuadro clínico. Esto aplica especialmente a revisionSistemas, paraclinicos, e ítems del planManejo. (Excepción: signosVitales y examenFisico SÍ usan sus valores normales por defecto documentados abajo — esa es una convención clínica estándar, no una invención).
+- TERMINOLOGÍA MÉDICA COLOMBIANA, NO traducciones literales del inglés. Usa siempre el término clínico estándar en Colombia:
+  ✓ "cuadro hemático" (NO "conteo sanguíneo completo")
+  ✓ "tensión arterial" o "TA" (NO "presión sanguínea")
+  ✓ "parcial de orina" (NO "análisis de orina")
+  ✓ "valoración por" / "interconsulta con" (NO "referencia a")
+  ✓ "líquidos endovenosos" (NO "fluidos intravenosos")
+  ✓ "NPO (nada por vía oral)" (NO "ayuno completo")
+  ✓ "cuadro clínico" (NO "presentación clínica")
+  ✓ "se decide" / "se indica" (NO "se recomienda" salvo instrucciones al paciente)
 - Corrige ortografía y mejora redacción médica preservando el contenido clínico.
 
 - Si el paciente mencionó escala de dolor (EVA u otra), inclúyela en la enfermedad actual.
@@ -75,10 +83,12 @@ REGLAS POR SECCIÓN:
    - Médico menciona "fuma" o "toma licor" → Tóxicos: tabaquismo activo / alcoholismo
    NUNCA dejar este campo vacío ni omitir ítems.
 4. signosVitales: SIEMPRE presente. Si el médico mencionó signos vitales → úsalos. Si NO los mencionó → usa los valores normales por defecto: "TA: 120/80 mmHg   FC: 72 lpm   FR: 18 rpm   SatO2: 98%   Temp: 36.5°C". Formato: "TA: X/Y mmHg   FC: X lpm   FR: X rpm   SatO2: X%   Temp: X°C". NUNCA dejar este campo vacío.
+4b. revisionSistemas: Revisión por sistemas — SOLO síntomas que el médico o paciente mencionaron explícitamente, organizados por sistema (Ej: "Cardiovascular: niega palpitaciones. Respiratorio: niega disnea. Gastrointestinal: refiere náuseas."). Si NO se mencionó ningún síntoma de revisión por sistemas en la transcripción (es decir, no hubo un repaso explícito más allá del motivo de consulta), escribe exactamente "No referido". NUNCA inventes síntomas negativos por sistema que el médico no haya dicho — a diferencia de antecedentes/examenFisico, este campo NO tiene una plantilla de "niega" por defecto.
 5. examenFisico: Si se mencionan hallazgos → úsalos, examenFisicoEsDefault: false. Si NO se mencionan → usa el texto estándar abajo, examenFisicoEsDefault: true.
    TEXTO ESTÁNDAR (usar si no se detectaron hallazgos):
    "- Aspecto general: consciente, alerta, orientado, en buenas condiciones generales.\n- Cabeza y cuello: normocéfalo, pupilas isocóricas normorreactivas, mucosas húmedas, sin adenopatías.\n- Tórax y pulmones: expansión torácica simétrica, murmullo vesicular conservado, sin ruidos sobreagregados. Ruidos cardíacos rítmicos, sin soplos.\n- Abdomen: blando, depresible, sin dolor a la palpación, ruidos intestinales presentes, sin visceromegalias.\n- Extremidades: sin edemas, pulsos periféricos presentes y simétricos.\n- Neurológico: sin déficit motor ni sensitivo, marcha conservada."
    REGLA: Si el médico menciona hallazgos de corazón → van dentro de "Tórax y pulmones", NO como sección separada. Cuando el médico mencione hallazgos, reemplaza el valor normal de esa sección. Las secciones no mencionadas mantienen sus valores normales.
+5b. paraclinicos: Resultados de laboratorios o imágenes YA DISPONIBLES y revisados durante la consulta (no los que se están solicitando a futuro — esos van en planManejo). Formato lista con guión: "- [examen]: [resultado]". Si el médico no mencionó ningún resultado de paraclínico ya disponible, escribe exactamente "No referido". NUNCA inventes valores de laboratorio.
 6. analisis: Párrafo en prosa, en tercera persona, usando ÚNICAMENTE lo que el médico dijo en la transcripción. Sin longitud fija — si hay poca información el análisis será corto, si hay más detalle será más completo. Empieza con quién es el paciente y por qué consulta, luego los hallazgos del examen si el médico los mencionó, luego la impresión diagnóstica y la conducta planteada. Todo en un solo párrafo fluido, como una nota clínica real colombiana.
    NUNCA incluir en el análisis:
    - La frase "LIMITACIÓN CRÍTICA" ni ninguna variante similar
@@ -91,23 +101,20 @@ REGLAS POR SECCIÓN:
    - Paréntesis con explicaciones adicionales
    - Texto educativo o académico de cualquier tipo
    Si falta información, simplemente omítela. El médico la completará manualmente.
-7. diagnostico: Preciso y conciso, máximo una línea.
-   - Si el diagnóstico es claro: escríbelo directamente. Ej: "Hemorragia subaracnoidea"
-   - Si hay duda entre DOS diagnósticos CLÍNICAMENTE RELACIONADOS: usa "vs". Ej: "Cefalea en trueno: HSA vs migraña basilar". SOLO cuando ambas posibilidades son parte del mismo razonamiento diferencial, no para listar cualquier incertidumbre.
-   - Si el diagnóstico no está claro en la transcripción: usa "[síntoma principal] en estudio". Ej: "Dolor torácico en estudio", "Síncope en estudio"
+7. diagnostico: Preciso y conciso, máximo una línea. SIEMPRE en el formato "Nombre de la enfermedad (CIE-10: código)" — el código va SIEMPRE entre paréntesis al final, en el mismo campo diagnostico (además de repetirlo en codigoCIE10 por separado).
+   - Si el diagnóstico es claro: escríbelo directamente. Ej: "Hemorragia subaracnoidea (CIE-10: I60.9)"
+   - Si hay duda entre DOS diagnósticos CLÍNICAMENTE RELACIONADOS: usa "vs", con el código CIE-10 de cada uno. Ej: "Cefalea en trueno: HSA (CIE-10: I60.9) vs migraña basilar (CIE-10: G43.1)". SOLO cuando ambas posibilidades son parte del mismo razonamiento diferencial, no para listar cualquier incertidumbre.
+   - Si el diagnóstico no está claro en la transcripción: usa "[síntoma principal] en estudio (CIE-10: código del síntoma)". Ej: "Dolor torácico en estudio (CIE-10: R07.9)"
    - Nunca más de dos diagnósticos en un "vs"
    - Nunca usar "etiología por precisar", "descartar urgentemente X, Y, Z" ni frases similares
-8. codigoCIE10: Código CIE-10 más específico posible.
+8. codigoCIE10: Código CIE-10 más específico posible (el mismo que ya incluiste entre paréntesis en diagnostico).
 9. descripcionCIE10: Descripción oficial del código CIE-10 seleccionado.
-10. planManejo: Incluye SOLO lo que el médico mencionó, en este orden fijo (omite cualquier ítem no mencionado):
-   1. Destino del paciente (si aplica): Observación / Hospitalización / Manejo ambulatorio
-   2. Dieta (si aplica): Ej: "Dieta blanda", "NPO (nada por vía oral)", "Dieta libre"
-   3. Vía venosa y líquidos (si aplica): Ej: "Catéter venoso periférico", "SSN 0.9% 1000cc a 42cc/hora"
-   4. Medicamentos: Nombre, dosis, vía, frecuencia — uno por línea
-   5. Paraclínicos e imágenes (si aplica): laboratorios o imágenes solicitadas
-   6. Interconsultas o valoraciones (si aplica): Ej: "Valoración por neurología"
-   7. Indicaciones de enfermería (si aplica): Ej: "Control de signos vitales cada 4 horas", "Balance hídrico estricto"
-   El orden es fijo. El contenido viene exclusivamente de la transcripción. Si el médico no mencionó un ítem, no lo pongas.
+10. planManejo: SIEMPRE debe tener, en este orden, las 4 subsecciones con su etiqueta literal seguida de ":" — si el médico no mencionó algo de una subsección, escribe "No referido" (o "Ninguna" para interconsultas) en esa línea, NUNCA la omitas ni la inventes:
+   "Medicamentos: [nombre, dosis, vía, frecuencia — uno por línea, o 'No referido']
+   Paraclínicos solicitados: [laboratorios o imágenes solicitados a futuro, o 'No referido']
+   Interconsultas: [valoraciones solicitadas, o 'Ninguna']
+   Conducta de egreso: [Observación / Hospitalización / Manejo ambulatorio / Alta médica — si el médico no especificó destino ni egreso, escribe 'No referido']"
+   Antes de estas 4 subsecciones, si el médico mencionó destino inicial, dieta, vía venosa o indicaciones de enfermería, inclúyelos como líneas adicionales al inicio (mismo criterio de antes: solo lo que se mencionó). El contenido de cada subsección viene EXCLUSIVAMENTE de la transcripción — nunca inventes un medicamento, paraclínico o conducta que el médico no mencionó.
 11. instruccionesPaciente: Cada instrucción con guión. Lenguaje claro para el paciente. "- [instrucción]\n- ..."
 12. sugerenciasFarmacologicas: Array con 2-3 medicamentos apropiados. Dosis exactas en adultos estándar.
 13. blindajeDocumental: Analiza la nota generada con base en los criterios del Manual Único de Glosas de Colombia. El objetivo es REDUCIR glosas por documentación incompleta, no garantizar aprobación total.
@@ -134,9 +141,11 @@ Responde ÚNICAMENTE en formato JSON con esta estructura exacta:
   "motivoConsulta": "",
   "enfermedadActual": "",
   "antecedentes": "",
+  "revisionSistemas": "No referido",
   "signosVitales": "TA: 120/80 mmHg   FC: 72 lpm   FR: 18 rpm   SatO2: 98%   Temp: 36.5°C",
   "examenFisico": "",
   "examenFisicoEsDefault": false,
+  "paraclinicos": "No referido",
   "analisis": "",
   "diagnostico": "",
   "codigoCIE10": "",
@@ -401,6 +410,57 @@ function tryParseJson(raw: string): Record<string, unknown> | null {
 
 export function isGroqConfigured(): boolean {
   return Boolean(GROQ_API_KEY && !GROQ_API_KEY.includes('aqui_va'))
+}
+
+// ─── Transcript quality gate ───────────────────────────────────────────────────
+// Catches recordings that produced text but no real clinical content: very short
+// transcripts, or transcripts made up almost entirely of filler words ("gracias",
+// "ok", "hmm"...). Called right after transcription, before generating a note.
+const FILLER_WORDS = new Set([
+  'gracias', 'ok', 'okay', 'hmm', 'mm', 'mmm', 'aja', 'ajá', 'listo', 'ya',
+  'bueno', 'si', 'sí', 'no', 'vale', 'eh', 'ehh', 'um', 'umm', 'pues', 'entonces',
+])
+
+export function hasInsufficientClinicalContent(transcript: string): boolean {
+  const words = transcript.trim().split(/\s+/).filter(Boolean)
+  if (words.length < 20) return true
+  const meaningful = words.filter(w => !FILLER_WORDS.has(w.toLowerCase().replace(/[.,!?¿¡]/g, '')))
+  return meaningful.length < 6
+}
+
+// ─── Note type auto-detection ──────────────────────────────────────────────────
+// Keyword-based (no extra API call) — runs on the transcript right after
+// transcription to suggest the correct note type before generating the note.
+// Returns null when nothing suggests a different type than the one selected.
+const NOTE_TYPE_KEYWORDS: Record<NoteType, string[]> = {
+  traslado: [
+    'se traslada', 'traslado desde', 'remitido de', 'remitida de', 'viene remitido',
+    'viene remitida', 'ingreso por traslado', 'trasladado de', 'trasladada de',
+    'remitido desde', 'remitida desde',
+  ],
+  evolucion: [
+    'evolución del día', 'evolucion del dia', 'continúa hospitalizado', 'continua hospitalizado',
+    'continúa hospitalizada', 'continua hospitalizada', 'día de hospitalización', 'dia de hospitalizacion',
+    'control de hospitalización', 'control de hospitalizacion', 'nota de evolución', 'nota de evolucion',
+  ],
+  telemedicina: [
+    'teleconsulta', 'consulta virtual', 'por videollamada', 'consulta por telemedicina', 'video llamada',
+  ],
+  ingreso: [
+    'el paciente ingresa', 'paciente ingresa por', 'consulta por primera vez', 'primera consulta',
+    'es la primera vez que consulta',
+  ],
+}
+
+export function detectSuggestedNoteType(transcript: string, currentType: NoteType): NoteType | null {
+  const t = transcript.toLowerCase()
+  // Order matters: traslado/evolución/telemedicina are more specific signals than "ingreso".
+  for (const type of ['traslado', 'evolucion', 'telemedicina', 'ingreso'] as NoteType[]) {
+    if (type === currentType) continue
+    const keywords = NOTE_TYPE_KEYWORDS[type] ?? []
+    if (keywords.some(k => t.includes(k))) return type
+  }
+  return null
 }
 
 export function isAnthropicConfigured(): boolean {
@@ -676,9 +736,11 @@ export async function generateSoapNote(transcript: string, options: GenerateOpti
     chief_complaint: (parsed.motivoConsulta as string) || '',
     current_illness: currentIllness,
     relevant_history: (parsed.antecedentes as string) || DEFAULT_ANTECEDENTES,
+    review_of_systems: (parsed.revisionSistemas as string) || 'No referido',
     vital_signs: (parsed.signosVitales as string) || DEFAULT_VITAL_SIGNS,
     physical_exam: physicalExam,
     physical_exam_is_default: isTelemed ? false : physicalExamIsDefault,
+    paraclinical_results: (parsed.paraclinicos as string) || 'No referido',
     analysis: (parsed.analisis as string) || '',
     diagnosis: (parsed.diagnostico as string) || '',
     cie10_code: (parsed.codigoCIE10 as string) || '',
@@ -992,7 +1054,7 @@ Máximo 400 palabras. Sé específico y práctico. Si no encuentras guías colom
   }
 }
 
-export function formatNoteForClipboard(note: SoapNote, patientName?: string): string {
+export function formatNoteForClipboard(note: SoapNote): string {
   const date = new Date().toLocaleDateString('es-CO', {
     weekday: 'long', day: '2-digit', month: 'long', year: 'numeric',
   })
@@ -1003,7 +1065,6 @@ export function formatNoteForClipboard(note: SoapNote, patientName?: string): st
       '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
       'NOTA DE EVOLUCIÓN — DICTIA AI',
       `${note.evolution_date || date}${note.hospitalization_day ? ` — Día ${note.hospitalization_day} de hospitalización` : ''}`,
-      patientName ? `Paciente: ${patientName}` : '',
       '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
     ]
 
@@ -1048,7 +1109,6 @@ export function formatNoteForClipboard(note: SoapNote, patientName?: string): st
       '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
       'NOTA DE INGRESO POR TRASLADO — DICTIA AI',
       `${note.evolution_date || date}`,
-      patientName ? `Paciente: ${patientName}` : '',
       '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
     ]
 
@@ -1092,7 +1152,6 @@ export function formatNoteForClipboard(note: SoapNote, patientName?: string): st
     '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
     note.is_telemedicine ? 'HISTORIA CLÍNICA — DICTIA AI (TELEMEDICINA)' : 'HISTORIA CLÍNICA — DICTIA AI',
     `Fecha: ${date}`,
-    patientName ? `Paciente: ${patientName}` : '',
     '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
     '',
     'MOTIVO DE CONSULTA',
@@ -1104,6 +1163,9 @@ export function formatNoteForClipboard(note: SoapNote, patientName?: string): st
     'ANTECEDENTES RELEVANTES',
     note.relevant_history,
     '',
+    'REVISIÓN POR SISTEMAS',
+    note.review_of_systems || 'No referido',
+    '',
     'SIGNOS VITALES',
     note.vital_signs || DEFAULT_VITAL_SIGNS,
     '',
@@ -1112,11 +1174,14 @@ export function formatNoteForClipboard(note: SoapNote, patientName?: string): st
       : 'EXAMEN FÍSICO',
     note.physical_exam || '(No evaluado)',
     '',
+    'PARACLÍNICOS',
+    note.paraclinical_results || 'No referido',
+    '',
     'ANÁLISIS',
     note.analysis,
     '',
     'DIAGNÓSTICO',
-    `${note.diagnosis}${note.cie10_code ? ` (${note.cie10_code})` : ''}`,
+    note.diagnosis,
     note.cie10_description || '',
     '',
     'PLAN DE MANEJO',

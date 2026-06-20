@@ -566,13 +566,12 @@ function WebSearchEvidence({ diagnosis }: { diagnosis: string }) {
 }
 
 // ─── Full Note Preview ─────────────────────────────────────────────────────────
-function FullNotePreview({ note, patientName, onCopy, copied }: {
+function FullNotePreview({ note, onCopy, copied }: {
   note: SoapNote
-  patientName: string
   onCopy: (text: string) => void
   copied: boolean
 }) {
-  const baseText = useMemo(() => formatNoteForClipboard(note, patientName || undefined), [note, patientName])
+  const baseText = useMemo(() => formatNoteForClipboard(note), [note])
   const [editedText, setEditedText] = useState(baseText)
   const [isEditing, setIsEditing] = useState(false)
   const [dirty, setDirty] = useState(false)
@@ -722,7 +721,6 @@ export default function NewConsultation() {
   const [stage, setStage] = useState<Stage>('idle')
   const [processingStep, setProcessingStep] = useState<ProcessingStep>(null)
   const [seconds, setSeconds] = useState(0)
-  const [patientName, setPatientName] = useState('')
   const [transcript, setTranscript] = useState('')
   const [note, setNote] = useState<SoapNote | null>(null)
   const [error, setError] = useState('')
@@ -1276,7 +1274,7 @@ export default function NewConsultation() {
 
       await incrementConsultations()
       Analytics.notaAprobada(noteType, (specialtyOverride || profile?.specialty) ?? null)
-      const text = formatNoteForClipboard(note, patientName || undefined)
+      const text = formatNoteForClipboard(note)
       await navigator.clipboard.writeText(text).catch(() => {})
       setCopied(true)
       setTimeout(() => navigate('/dashboard'), 1800)
@@ -1504,18 +1502,6 @@ export default function NewConsultation() {
                     </div>
                   </div>
                 )}
-
-                {/* Patient name */}
-                <div>
-                  <label className="label text-center">Nombre o código del paciente (opcional)</label>
-                  <input
-                    type="text"
-                    value={patientName}
-                    onChange={e => setPatientName(e.target.value)}
-                    placeholder="Ej: Paciente 001 o Cama 4B"
-                    className="input-field text-center"
-                  />
-                </div>
 
                 {/* Specialty selector */}
                 <div>
@@ -2220,7 +2206,6 @@ export default function NewConsultation() {
             {/* Full note preview — Mejora 1 */}
             <FullNotePreview
               note={note}
-              patientName={patientName}
               onCopy={handleCopyPreview}
               copied={previewCopied}
             />
