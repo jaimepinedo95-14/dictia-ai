@@ -761,6 +761,7 @@ export default function NewConsultation() {
   const [error, setError] = useState('')
   const [noMicDetected, setNoMicDetected] = useState(false)
   const [suggestedNoteType, setSuggestedNoteType] = useState<NoteType | null>(null)
+  const [additionalContext, setAdditionalContext] = useState('')
   const [editingKey, setEditingKey] = useState<keyof SoapNote | null>(null)
   const [editValue, setEditValue] = useState('')
   const [expandedSection, setExpandedSection] = useState<keyof SoapNote | null>(null)
@@ -1201,6 +1202,7 @@ export default function NewConsultation() {
           previousContext: previousContext || undefined,
           hospitalizationDay: effectiveType === 'evolucion' ? hospitalizationDay : undefined,
           isDictation: recordingMode === 'dictado',
+          additionalContext: additionalContext || undefined,
         })
         setNote(generatedNote)
         setTranscript('')
@@ -1411,6 +1413,20 @@ export default function NewConsultation() {
   const isEvolution = note?.note_type === 'evolucion'
   const isTransfer = note?.note_type === 'traslado'
   const quickSummary = note ? buildQuickSummary(note) : null
+
+  const AdditionalContextField = () => (
+    <div className="w-full max-w-md mx-auto text-left">
+      <label className="label text-center">Contexto adicional (opcional)</label>
+      <textarea
+        value={additionalContext}
+        onChange={e => setAdditionalContext(e.target.value)}
+        placeholder="Agrega antecedentes, resultados de paraclínicos, nota anterior, o instrucciones específicas para la nota..."
+        className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-transparent transition-all text-sm leading-relaxed resize-none"
+        rows={3}
+        maxLength={5000}
+      />
+    </div>
+  )
 
   return (
     <AppShell>
@@ -1671,6 +1687,7 @@ export default function NewConsultation() {
                   rows={8}
                   maxLength={10000}
                 />
+                <AdditionalContextField />
                 <button
                   onClick={handleGenerateFromText}
                   disabled={!textChangesInput.trim()}
@@ -1730,6 +1747,12 @@ export default function NewConsultation() {
                 )}
               </div>
             </div>
+
+            {stage === 'idle' && textInputMode !== 'escribir' && (
+              <div className="mt-6">
+                <AdditionalContextField />
+              </div>
+            )}
 
             {stage === 'recording' && (
               <div className="w-full max-w-sm mx-auto space-y-3 mt-6">

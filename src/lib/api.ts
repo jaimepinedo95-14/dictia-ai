@@ -535,6 +535,7 @@ type GenerateOptions = {
   previousContext?: string
   hospitalizationDay?: number
   isDictation?: boolean
+  additionalContext?: string
 }
 
 // ─── Web-search-enabled Claude call ───────────────────────────────────────────
@@ -630,16 +631,16 @@ async function callClaude(systemPrompt: string, userMessage: string, maxTokens =
 }
 
 export async function generateSoapNote(transcript: string, options: GenerateOptions = {}): Promise<SoapNote> {
-  const { specialty, noteStyle, isTelemedicine, noteType = 'ingreso', recentNotes, previousContext, hospitalizationDay, isDictation } = options
+  const { specialty, noteStyle, isTelemedicine, noteType = 'ingreso', recentNotes, previousContext, hospitalizationDay, isDictation, additionalContext } = options
   const isEvolution = noteType === 'evolucion'
   const isTelemed = noteType === 'telemedicina' || isTelemedicine
 
   if (isEvolution) {
-    return generateEvolutionNote(transcript, { specialty, noteStyle, previousContext, hospitalizationDay, isDictation })
+    return generateEvolutionNote(transcript, { specialty, noteStyle, previousContext, hospitalizationDay, isDictation, additionalContext })
   }
 
   if (noteType === 'traslado') {
-    return generateTransferNote(transcript, { specialty, noteStyle, previousContext, isDictation })
+    return generateTransferNote(transcript, { specialty, noteStyle, previousContext, isDictation, additionalContext })
   }
 
   // Build system prompt: base + specialty + note style instruction
@@ -676,6 +677,10 @@ export async function generateSoapNote(transcript: string, options: GenerateOpti
       if (n.management_plan) parts.push(`Plan: ${n.management_plan.slice(0, 200)}`)
     })
     parts.push(`\n--- FIN DE EJEMPLOS DE ESTILO ---`)
+  }
+
+  if (additionalContext && additionalContext.trim()) {
+    parts.push(`\nCONTEXTO ADICIONAL DEL MÉDICO:\n${additionalContext.trim()}\n--- FIN CONTEXTO ADICIONAL ---`)
   }
 
   parts.push(`\nTranscripción de la consulta:\n\n${transcripcionLimpia}`)
@@ -757,9 +762,9 @@ export async function generateSoapNote(transcript: string, options: GenerateOpti
 
 async function generateEvolutionNote(
   transcript: string,
-  options: { specialty?: string; noteStyle?: string; previousContext?: string; hospitalizationDay?: number; isDictation?: boolean }
+  options: { specialty?: string; noteStyle?: string; previousContext?: string; hospitalizationDay?: number; isDictation?: boolean; additionalContext?: string }
 ): Promise<SoapNote> {
-  const { noteStyle, previousContext, hospitalizationDay, isDictation } = options
+  const { noteStyle, previousContext, hospitalizationDay, isDictation, additionalContext } = options
 
   const styleInstruction = noteStyle === 'uppercase'
     ? '\n\nIMPORTANTE: Genera toda la respuesta JSON en MAYÚSCULAS. Sin excepción.'
@@ -785,6 +790,10 @@ async function generateEvolutionNote(
 
   if (previousContext) {
     parts.push(`\nNOTA ANTERIOR (CONTEXTO BASE):\n${previousContext}\n--- FIN NOTA ANTERIOR ---`)
+  }
+
+  if (additionalContext && additionalContext.trim()) {
+    parts.push(`\nCONTEXTO ADICIONAL DEL MÉDICO:\n${additionalContext.trim()}\n--- FIN CONTEXTO ADICIONAL ---`)
   }
 
   parts.push(`\nCAMBIOS DEL DÍA:\n\n${transcripcionLimpia}`)
@@ -854,9 +863,9 @@ async function generateEvolutionNote(
 
 async function generateTransferNote(
   transcript: string,
-  options: { specialty?: string; noteStyle?: string; previousContext?: string; isDictation?: boolean }
+  options: { specialty?: string; noteStyle?: string; previousContext?: string; isDictation?: boolean; additionalContext?: string }
 ): Promise<SoapNote> {
-  const { noteStyle, previousContext, isDictation } = options
+  const { noteStyle, previousContext, isDictation, additionalContext } = options
 
   const styleInstruction = noteStyle === 'uppercase'
     ? '\n\nIMPORTANTE: Genera toda la respuesta JSON en MAYÚSCULAS. Sin excepción.'
@@ -878,6 +887,10 @@ async function generateTransferNote(
 
   if (previousContext) {
     parts.push(`CONTEXTO BASE (notas del servicio de origen):\n${previousContext}\n--- FIN CONTEXTO BASE ---`)
+  }
+
+  if (additionalContext && additionalContext.trim()) {
+    parts.push(`\nCONTEXTO ADICIONAL DEL MÉDICO:\n${additionalContext.trim()}\n--- FIN CONTEXTO ADICIONAL ---`)
   }
 
   parts.push(`\nGRABACIÓN AL INGRESO (transcripción del médico al recibir al paciente):\n\n${transcripcionLimpia}`)
