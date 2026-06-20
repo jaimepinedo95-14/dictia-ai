@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import {
   Mic, Square, CheckCircle, Copy, Edit3, Trash2, AlertTriangle,
   ChevronDown, ChevronUp, Zap, RefreshCw, MicOff, Pill, Wifi, Shield,
-  MessageCircle, BookOpen, Send, Monitor, ClipboardList, X, Globe,
+  MessageCircle, BookOpen, Send, Monitor, ClipboardList, X, Globe, Smartphone, Usb,
 } from 'lucide-react'
 import AppShell from '../components/AppShell'
 import { useAuth } from '../contexts/AuthContext'
@@ -726,6 +726,7 @@ export default function NewConsultation() {
   const [transcript, setTranscript] = useState('')
   const [note, setNote] = useState<SoapNote | null>(null)
   const [error, setError] = useState('')
+  const [noMicDetected, setNoMicDetected] = useState(false)
   const [editingKey, setEditingKey] = useState<keyof SoapNote | null>(null)
   const [editValue, setEditValue] = useState('')
   const [expandedSection, setExpandedSection] = useState<keyof SoapNote | null>(null)
@@ -834,6 +835,7 @@ export default function NewConsultation() {
   async function startRecording() {
     if (!canStartRecording) { setError(limitReason ?? ''); return }
     setError('')
+    setNoMicDetected(false)
 
     // Refresh service worker to prevent stale SW intercepting Groq/Anthropic fetches
     if ('serviceWorker' in navigator) {
@@ -877,6 +879,25 @@ export default function NewConsultation() {
           stream = dest.stream
         } catch { /* Use only display audio if mic fails */ }
       } else {
+        // Check for an audio input device BEFORE prompting for permission.
+        // On some desktop computers with no mic (and no permission dialog ever
+        // shown), getUserMedia just hangs/rejects silently — this catches that
+        // case explicitly and shows the user a clear, actionable message.
+        try {
+          const devices = await navigator.mediaDevices.enumerateDevices()
+          const hasAudioInput = devices.some(d => d.kind === 'audioinput')
+          if (!hasAudioInput) {
+            console.error('[Dictia] startRecording: no se detectó ningún dispositivo audioinput', devices)
+            setNoMicDetected(true)
+            setStage('error')
+            return
+          }
+        } catch (enumErr) {
+          // enumerateDevices itself failing is unusual but non-fatal —
+          // let getUserMedia below surface the real error instead.
+          console.warn('[Dictia] enumerateDevices falló, continuando con getUserMedia:', enumErr)
+        }
+
         stream = await navigator.mediaDevices.getUserMedia({
           audio: {
             echoCancellation: true,
@@ -1014,12 +1035,25 @@ export default function NewConsultation() {
       }, 1000)
 
     } catch (err) {
-      const msg = err instanceof Error && err.name === 'NotAllowedError'
-        ? noteType === 'telemedicina'
+      console.error('[Dictia] startRecording error:', err)
+      const name = err instanceof Error ? err.name : ''
+      const detail = err instanceof Error ? err.message : String(err)
+
+      if (name === 'NotFoundError' || name === 'OverconstrainedError') {
+        // Device list said there was a mic, but getUserMedia couldn't get a track from it
+        // (disconnected mid-request, driver issue, etc.) — same dedicated screen as enumerateDevices.
+        setNoMicDetected(true)
+      } else {
+        const msg = noteType === 'telemedicina'
           ? 'Debes compartir la pantalla con audio para grabar telemedicina. Activa el audio del sistema al compartir.'
-          : 'No se pudo acceder al micrófono. Verifica los permisos del navegador.'
-        : 'No se pudo iniciar la grabación. Verifica los permisos del navegador.'
-      setError(msg)
+          : name === 'NotAllowedError'
+          ? 'El navegador bloqueó el acceso al micrófono. Haz clic en el ícono de candado/cámara en la barra de direcciones, permite el micrófono para este sitio y recarga la página.'
+          : name === 'NotReadableError'
+          ? 'El micrófono está siendo usado por otra aplicación (otra videollamada, otra pestaña). Cierra esas aplicaciones e intenta de nuevo.'
+          : `No se pudo iniciar la grabación (${name || 'error desconocido'}${detail ? `: ${detail}` : ''}). Intenta recargar la página o usa otro navegador.`
+        setError(msg)
+      }
+      setStage('error')
       cleanupRecording()
     }
   }
@@ -1753,8 +1787,39 @@ export default function NewConsultation() {
           </div>
         )}
 
+        {/* ── No microphone detected ── */}
+        {stage === 'error' && noMicDetected && (
+          <div className="card border-2 border-amber-200 bg-amber-50 py-8 text-center space-y-4">
+            <div className="w-16 h-16 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto">
+              <MicOff size={28} className="text-amber-600" />
+            </div>
+            <div>
+              <h3 className="font-bold text-amber-900 text-lg">No se detectó micrófono en este equipo</h3>
+              <p className="text-amber-700 text-sm mt-2 max-w-sm mx-auto leading-relaxed">
+                Este computador no tiene ningún micrófono conectado o el navegador no puede detectarlo. Opciones:
+              </p>
+              <div className="mt-4 max-w-sm mx-auto text-left space-y-2.5">
+                <div className="flex items-start gap-2.5 bg-white border border-amber-200 rounded-xl px-3 py-2.5">
+                  <Usb size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-800">Conecta un micrófono externo USB o de 3.5mm y vuelve a intentar.</p>
+                </div>
+                <div className="flex items-start gap-2.5 bg-white border border-amber-200 rounded-xl px-3 py-2.5">
+                  <Smartphone size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-800">O graba desde tu celular abriendo <strong>dictia-ai.vercel.app</strong> en tu teléfono.</p>
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => { setStage('idle'); setError(''); setNoMicDetected(false) }}
+              className="btn-primary text-sm py-2.5 px-5"
+            >
+              Entendido
+            </button>
+          </div>
+        )}
+
         {/* ── Error state ── */}
-        {stage === 'error' && (
+        {stage === 'error' && !noMicDetected && (
           <div className="card border-2 border-red-200 bg-red-50 py-8 text-center space-y-4">
             <div className="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center mx-auto">
               <MicOff size={28} className="text-red-500" />
