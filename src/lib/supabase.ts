@@ -129,7 +129,9 @@ export type SoapNote = {
   chief_complaint: string
   current_illness: string
   relevant_history: string
+  review_of_systems?: string
   physical_exam: string
+  paraclinical_results?: string
   physical_exam_is_default: boolean
   analysis: string
   diagnosis: string
