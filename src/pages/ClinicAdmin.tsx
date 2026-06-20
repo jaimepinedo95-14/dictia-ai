@@ -8,7 +8,6 @@ import AppShell from '../components/AppShell'
 import {
   fetchClinicById, fetchClinicDoctors, fetchCreditHistory,
   updateClinicIps, updateClinicModules, getCurrentIp,
-  MOCK_CLINICAS, MOCK_CLINIC_DOCTORS, MOCK_CREDIT_TRANSACTIONS,
 } from '../lib/adminDb'
 import type { Clinica, ClinicUser, CreditTransaction } from '../lib/supabase'
 
@@ -29,7 +28,7 @@ const CREDIT_PACKAGES = [
 
 export default function ClinicAdmin() {
   const [searchParams] = useSearchParams()
-  const clinicaId = searchParams.get('id') ?? 'clinica-001'
+  const clinicaId = searchParams.get('id') ?? ''
   const [activeTab, setActiveTab] = useState<Tab>('overview')
   const [clinica, setClinica] = useState<Clinica | null>(null)
   const [doctors, setDoctors] = useState<ClinicUser[]>([])
@@ -55,17 +54,17 @@ export default function ClinicAdmin() {
 
   useEffect(() => {
     async function load() {
+      if (!clinicaId) { setLoading(false); return }
       const [c, d, tx] = await Promise.all([
         fetchClinicById(clinicaId),
         fetchClinicDoctors(clinicaId),
         fetchCreditHistory(clinicaId),
       ])
-      const clinic = c ?? MOCK_CLINICAS[0]
-      setClinica(clinic)
-      setIps(clinic.ips_autorizadas)
-      setModules(clinic.modulos_activos)
-      setDoctors(d.length > 0 ? d : MOCK_CLINIC_DOCTORS)
-      setCreditHistory(tx.length > 0 ? tx : MOCK_CREDIT_TRANSACTIONS)
+      setClinica(c)
+      setIps(c?.ips_autorizadas ?? [])
+      setModules(c?.modulos_activos ?? [])
+      setDoctors(d)
+      setCreditHistory(tx)
       setLoading(false)
     }
     load()

@@ -9,7 +9,6 @@ import { useAuth } from '../contexts/AuthContext'
 import {
   fetchAllUsers, fetchAllClinics, fetchCreditHistory, updateUserPlan,
   fetchAllConsultationsList, fetchMonthlyConsultationCounts, fetchNotesStats,
-  MOCK_CREDIT_TRANSACTIONS,
 } from '../lib/adminDb'
 import type { UserSummary, ConsultationSummary } from '../lib/adminDb'
 import type { Clinica, CreditTransaction } from '../lib/supabase'
@@ -102,7 +101,7 @@ export default function SuperAdmin() {
       setPlanMap(map)
       if (clinicsData.length > 0) {
         const tx = await fetchCreditHistory(clinicsData[0].id)
-        setActivityLog(tx.length > 0 ? tx : MOCK_CREDIT_TRANSACTIONS)
+        setActivityLog(tx)
       }
       setLoading(false)
     })

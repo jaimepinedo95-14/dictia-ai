@@ -1,83 +1,15 @@
 import { supabase, isSupabaseConfigured } from './supabase'
 import type { Clinica, CreditTransaction, ClinicUser } from './supabase'
 
-// ─── Mock data for demo mode ───────────────────────────────────────────────────
-export const MOCK_CLINICAS: Clinica[] = [
-  {
-    id: 'clinica-001',
-    nombre: 'Clínica Santa María',
-    email_admin: 'admin@santamaria.com',
-    creditos_disponibles: 850,
-    creditos_totales: 1000,
-    ips_autorizadas: ['192.168.1.0/24', '10.0.0.0/8'],
-    modulos_activos: ['urgencias', 'telemedicina', 'evolucion_hospitalizacion'],
-    activa: true,
-    created_at: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 'clinica-002',
-    nombre: 'IPS Saludvida Medellín',
-    email_admin: 'admin@saludvida.com',
-    creditos_disponibles: 4820,
-    creditos_totales: 5000,
-    ips_autorizadas: [],
-    modulos_activos: ['urgencias', 'evolucion_hospitalizacion'],
-    activa: true,
-    created_at: new Date(Date.now() - 120 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 'clinica-003',
-    nombre: 'Centro Médico Especialidades Bogotá',
-    email_admin: 'admin@especialidades.com',
-    creditos_disponibles: 125,
-    creditos_totales: 10000,
-    ips_autorizadas: ['201.235.0.0/16'],
-    modulos_activos: ['urgencias', 'telemedicina', 'evolucion_hospitalizacion', 'evolucion_uci'],
-    activa: true,
-    created_at: new Date(Date.now() - 200 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-]
-
-export const MOCK_CREDIT_TRANSACTIONS: CreditTransaction[] = [
-  { id: 'tx-1', clinica_id: 'clinica-001', tipo: 'recarga', creditos: 1000, descripcion: 'Compra inicial 1,000 HCs', created_at: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString() },
-  { id: 'tx-2', clinica_id: 'clinica-001', tipo: 'consumo', creditos: 80, descripcion: 'Consumo mensual — abril 2026', created_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString() },
-  { id: 'tx-3', clinica_id: 'clinica-001', tipo: 'consumo', creditos: 70, descripcion: 'Consumo mensual — mayo 2026', created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString() },
-]
-
-export const MOCK_CLINIC_DOCTORS: ClinicUser[] = [
-  {
-    id: 'cu-1',
-    user_id: 'mock-user-id',
-    clinica_id: 'clinica-001',
-    rol: 'medico',
-    activo: true,
-    created_at: new Date(Date.now() - 55 * 24 * 60 * 60 * 1000).toISOString(),
-    user: { full_name: 'Dr. Alejandro García', email: 'dr.garcia@dictia.health', specialty: 'Medicina General' },
-  },
-  {
-    id: 'cu-2',
-    user_id: 'user-2',
-    clinica_id: 'clinica-001',
-    rol: 'medico',
-    activo: true,
-    created_at: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(),
-    user: { full_name: 'Dra. Catalina Restrepo', email: 'dra.restrepo@santamaria.com', specialty: 'Medicina Interna' },
-  },
-  {
-    id: 'cu-3',
-    user_id: 'user-3',
-    clinica_id: 'clinica-001',
-    rol: 'medico',
-    activo: true,
-    created_at: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
-    user: { full_name: 'Dr. Miguel Vargas', email: 'dr.vargas@santamaria.com', specialty: 'Urgencias y Emergencias' },
-  },
-]
-
 // ─── Super Admin functions ─────────────────────────────────────────────────────
+// Todas las funciones de este archivo leen ÚNICAMENTE de Supabase. Si Supabase no
+// está configurado o una consulta falla, devuelven vacío/cero y registran el error
+// en consola — NUNCA datos inventados. Si el panel se ve vacío, revisa la consola
+// del navegador para el error real (RLS, RPC no desplegado, etc.).
 export async function fetchAllClinics(): Promise<Clinica[]> {
-  if (!isSupabaseConfigured) return MOCK_CLINICAS
-  const { data } = await supabase.from('clinicas').select('*').order('created_at', { ascending: false })
+  if (!isSupabaseConfigured) return []
+  const { data, error } = await supabase.from('clinicas').select('*').order('created_at', { ascending: false })
+  if (error) { console.error('[Dictia] fetchAllClinics:', error.message); return [] }
   return (data as Clinica[]) ?? []
 }
 
@@ -88,29 +20,32 @@ export async function createClinica(data: Partial<Clinica>): Promise<void> {
 
 // ─── Clinic Admin functions ────────────────────────────────────────────────────
 export async function fetchClinicById(clinicaId: string): Promise<Clinica | null> {
-  if (!isSupabaseConfigured) return MOCK_CLINICAS.find(c => c.id === clinicaId) ?? MOCK_CLINICAS[0]
-  const { data } = await supabase.from('clinicas').select('*').eq('id', clinicaId).single()
+  if (!isSupabaseConfigured) return null
+  const { data, error } = await supabase.from('clinicas').select('*').eq('id', clinicaId).single()
+  if (error) { console.error('[Dictia] fetchClinicById:', error.message); return null }
   return (data as Clinica) ?? null
 }
 
 export async function fetchClinicDoctors(clinicaId: string): Promise<ClinicUser[]> {
-  if (!isSupabaseConfigured) return MOCK_CLINIC_DOCTORS
-  const { data } = await supabase
+  if (!isSupabaseConfigured) return []
+  const { data, error } = await supabase
     .from('clinic_users')
     .select('*, user:user_profiles(full_name, email, specialty)')
     .eq('clinica_id', clinicaId)
     .eq('activo', true)
+  if (error) { console.error('[Dictia] fetchClinicDoctors:', error.message); return [] }
   return (data as ClinicUser[]) ?? []
 }
 
 export async function fetchCreditHistory(clinicaId: string): Promise<CreditTransaction[]> {
-  if (!isSupabaseConfigured) return MOCK_CREDIT_TRANSACTIONS.filter(t => t.clinica_id === clinicaId)
-  const { data } = await supabase
+  if (!isSupabaseConfigured) return []
+  const { data, error } = await supabase
     .from('credit_transactions')
     .select('*')
     .eq('clinica_id', clinicaId)
     .order('created_at', { ascending: false })
     .limit(20)
+  if (error) { console.error('[Dictia] fetchCreditHistory:', error.message); return [] }
   return (data as CreditTransaction[]) ?? []
 }
 
@@ -150,20 +85,18 @@ export async function getCurrentIp(): Promise<string> {
 }
 
 export async function fetchClinicCredits(clinicaId: string): Promise<number> {
-  if (!isSupabaseConfigured) {
-    const mock = MOCK_CLINICAS.find(c => c.id === clinicaId)
-    return mock?.creditos_disponibles ?? 0
-  }
-  const { data } = await supabase
+  if (!isSupabaseConfigured) return 0
+  const { data, error } = await supabase
     .from('clinicas')
     .select('creditos_disponibles')
     .eq('id', clinicaId)
     .single()
+  if (error) { console.error('[Dictia] fetchClinicCredits:', error.message); return 0 }
   return (data as { creditos_disponibles: number } | null)?.creditos_disponibles ?? 0
 }
 
 export async function deductClinicCredit(clinicaId: string, amount: number, descripcion: string): Promise<boolean> {
-  if (!isSupabaseConfigured) return true // mock success
+  if (!isSupabaseConfigured) return false
   const { error } = await supabase.rpc('deduct_clinic_credit', {
     p_clinica_id: clinicaId,
     p_amount: amount,
@@ -221,32 +154,6 @@ const PLAN_LIMITS: Record<string, number> = {
   basic: 100, standard: 250, advanced: 350, pro: 500, free_trial: 10, gratis: 999999,
 }
 
-export const MOCK_USERS: UserSummary[] = [
-  {
-    id: 'mock-u-1', full_name: 'Dr. Carlos Mendoza', email: 'carlos.mendoza@example.com',
-    specialty: 'Medicina General', plan: 'free_trial', plan_seleccionado: 'standard',
-    subscription_status: 'trial', consultations_used: 8, consultations_limit: 999999,
-    trial_start_at: new Date(Date.now() - 2 * 86400000).toISOString(),
-    trial_end_at: new Date(Date.now() + 86400000).toISOString(),
-    created_at: new Date(Date.now() - 2 * 86400000).toISOString(),
-  },
-  {
-    id: 'mock-u-2', full_name: 'Dra. Patricia López', email: 'patricia.lopez@example.com',
-    specialty: 'Pediatría', plan: 'free_trial', plan_seleccionado: 'basic',
-    subscription_status: 'pending', consultations_used: 0, consultations_limit: 999999,
-    trial_start_at: null, trial_end_at: null,
-    created_at: new Date(Date.now() - 86400000).toISOString(),
-  },
-  {
-    id: 'mock-u-3', full_name: 'Dr. Roberto Silva', email: 'roberto.silva@example.com',
-    specialty: 'Urgencias y Emergencias', plan: 'standard', plan_seleccionado: 'standard',
-    subscription_status: 'active', consultations_used: 47, consultations_limit: 250,
-    trial_start_at: new Date(Date.now() - 10 * 86400000).toISOString(),
-    trial_end_at: null,
-    created_at: new Date(Date.now() - 30 * 86400000).toISOString(),
-  },
-]
-
 // Usa el RPC admin_list_all_users (ver SQL en el comentario más abajo) en vez de
 // consultar user_profiles directamente. auth.users es la fuente de verdad de
 // "quién está registrado" — user_profiles puede tener filas faltantes si el
@@ -278,11 +185,11 @@ export const MOCK_USERS: UserSummary[] = [
 //   end; $$;
 //   grant execute on function public.admin_list_all_users() to authenticated;
 export async function fetchAllUsers(): Promise<UserSummary[]> {
-  if (!isSupabaseConfigured) return MOCK_USERS
+  if (!isSupabaseConfigured) return []
   const { data, error } = await supabase.rpc('admin_list_all_users')
   if (error) {
-    console.error('[Dictia] fetchAllUsers (RPC admin_list_all_users):', error.message)
-    return MOCK_USERS
+    console.error('[Dictia] fetchAllUsers (RPC admin_list_all_users) — ¿está desplegado el RPC en Supabase? Ver comentario arriba:', error.message)
+    return []
   }
   console.log('[Dictia] fetchAllUsers: filas recibidas (auth.users LEFT JOIN user_profiles):', data?.length ?? 0)
   return (data as UserSummary[]) ?? []
@@ -334,7 +241,7 @@ export async function grantFreeAccess(userId: string): Promise<void> {
 // número del panel super admin no coincidiera con el del dashboard del médico
 // (incluía notas 'processing'/'discarded' que nunca consumieron un crédito real).
 export async function fetchNotesStats(): Promise<{ today: number; month: number; total: number }> {
-  if (!isSupabaseConfigured) return { today: 3, month: 47, total: 312 }
+  if (!isSupabaseConfigured) return { today: 0, month: 0, total: 0 }
   const now = new Date()
   const todayStr = now.toISOString().split('T')[0]
   const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
@@ -374,25 +281,10 @@ export type NoteTypeCount = { type: string; count: number }
 export type SpecialtyCount = { specialty: string; count: number }
 export type DayCount = { day: string; count: number }
 
-const MOCK_NOTE_TYPES: NoteTypeCount[] = [
-  { type: 'ingreso', count: 18 },
-  { type: 'evolucion', count: 28 },
-  { type: 'telemedicina', count: 9 },
-  { type: 'traslado', count: 6 },
-]
-
-const MOCK_SPECIALTIES: SpecialtyCount[] = [
-  { specialty: 'Medicina General', count: 22 },
-  { specialty: 'Urgencias', count: 17 },
-  { specialty: 'Medicina Interna', count: 11 },
-  { specialty: 'Pediatría', count: 8 },
-  { specialty: 'Otra especialidad', count: 3 },
-]
-
 export async function fetchNotesByType(): Promise<NoteTypeCount[]> {
-  if (!isSupabaseConfigured) return MOCK_NOTE_TYPES
+  if (!isSupabaseConfigured) return []
   const { data, error } = await supabase.from('consultations').select('note_type')
-  if (error) { console.error('[Dictia] fetchNotesByType:', error.message); return MOCK_NOTE_TYPES }
+  if (error) { console.error('[Dictia] fetchNotesByType:', error.message); return [] }
   const counts: Record<string, number> = {}
   ;(data as { note_type: string }[]).forEach(r => {
     const t = r.note_type || 'ingreso'
@@ -403,9 +295,9 @@ export async function fetchNotesByType(): Promise<NoteTypeCount[]> {
 }
 
 export async function fetchNotesBySpecialty(): Promise<SpecialtyCount[]> {
-  if (!isSupabaseConfigured) return MOCK_SPECIALTIES
+  if (!isSupabaseConfigured) return []
   const { data, error } = await supabase.from('consultations').select('specialty')
-  if (error) { console.error('[Dictia] fetchNotesBySpecialty:', error.message); return MOCK_SPECIALTIES }
+  if (error) { console.error('[Dictia] fetchNotesBySpecialty:', error.message); return [] }
   const counts: Record<string, number> = {}
   ;(data as { specialty: string | null }[]).forEach(r => {
     const s = r.specialty || 'Sin especialidad'
@@ -426,14 +318,8 @@ export type ConsultationSummary = {
   doctor_email: string
 }
 
-const MOCK_CONSULTATIONS: ConsultationSummary[] = [
-  { id: 'mock-c-1', created_at: new Date(Date.now() - 2 * 3600000).toISOString(), note_type: 'ingreso', specialty: 'Medicina General', status: 'approved', doctor_name: 'Dr. Carlos Mendoza', doctor_email: 'carlos.mendoza@example.com' },
-  { id: 'mock-c-2', created_at: new Date(Date.now() - 5 * 3600000).toISOString(), note_type: 'evolucion', specialty: 'Medicina Interna', status: 'approved', doctor_name: 'Dr. Roberto Silva', doctor_email: 'roberto.silva@example.com' },
-  { id: 'mock-c-3', created_at: new Date(Date.now() - 26 * 3600000).toISOString(), note_type: 'telemedicina', specialty: 'Pediatría', status: 'discarded', doctor_name: 'Dra. Patricia López', doctor_email: 'patricia.lopez@example.com' },
-]
-
 export async function fetchAllConsultationsList(limit = 200): Promise<ConsultationSummary[]> {
-  if (!isSupabaseConfigured) return MOCK_CONSULTATIONS
+  if (!isSupabaseConfigured) return []
   const { data, error } = await supabase
     .from('consultations')
     .select('id, created_at, note_type, specialty, status, user:user_profiles(full_name, email)')
@@ -492,9 +378,7 @@ export async function fetchNotesByDay(): Promise<DayCount[]> {
     const d = new Date(Date.now() - (29 - i) * 86400000)
     return { day: d.toISOString().split('T')[0], count: 0 }
   })
-  if (!isSupabaseConfigured) {
-    return days.map(d => ({ ...d, count: Math.floor(Math.random() * 5) }))
-  }
+  if (!isSupabaseConfigured) return days
   const since = days[0].day + 'T00:00:00'
   const { data, error } = await supabase
     .from('consultations')
