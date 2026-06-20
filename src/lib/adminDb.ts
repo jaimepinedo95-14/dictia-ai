@@ -199,12 +199,15 @@ export async function deductClinicCredit(clinicaId: string, amount: number, desc
 //   create policy "Super admin reads all consultations" on public.consultations
 //     for select using (auth.jwt() ->> 'email' = 'jaimepinedo95@gmail.com' OR auth.uid() = user_id);
 
+// full_name, specialty, plan, subscription_status pueden ser null: el usuario
+// existe en auth.users (se registró) pero todavía no tiene fila en user_profiles
+// (insert falló o quedó pendiente). El email SIEMPRE viene de auth.users, nunca falta.
 export type UserSummary = {
   id: string
-  full_name: string
+  full_name: string | null
   email: string
-  specialty: string
-  plan: string
+  specialty: string | null
+  plan: string | null
   plan_seleccionado: string | null
   subscription_status: string | null
   consultations_used: number
@@ -244,28 +247,73 @@ export const MOCK_USERS: UserSummary[] = [
   },
 ]
 
+// Usa el RPC admin_list_all_users (ver SQL en el comentario más abajo) en vez de
+// consultar user_profiles directamente. auth.users es la fuente de verdad de
+// "quién está registrado" — user_profiles puede tener filas faltantes si el
+// insert automático falló (pasó con los bugs de 'gender' y de RLS recursivo).
+// El RPC hace el LEFT JOIN server-side y devuelve TODOS los usuarios de
+// auth.users, con los campos de perfil en null cuando no existe la fila.
+//
+// Requiere correr este SQL una vez en el SQL Editor de Supabase:
+//
+//   create or replace function public.admin_list_all_users()
+//   returns table (
+//     id uuid, email text, full_name text, specialty text, plan text,
+//     plan_seleccionado text, subscription_status text,
+//     consultations_used integer, consultations_limit integer,
+//     trial_start_at timestamptz, trial_end_at timestamptz, created_at timestamptz
+//   )
+//   language plpgsql security definer set search_path = public, auth as $$
+//   begin
+//     if auth.jwt() ->> 'email' is distinct from 'jaimepinedo95@gmail.com' then
+//       raise exception 'No autorizado';
+//     end if;
+//     return query
+//     select u.id, u.email::text, p.full_name, p.specialty, p.plan, p.plan_seleccionado,
+//            p.subscription_status, coalesce(p.consultations_used, 0), coalesce(p.consultations_limit, 0),
+//            p.trial_start_at, p.trial_end_at, coalesce(p.created_at, u.created_at)
+//     from auth.users u
+//     left join public.user_profiles p on p.id = u.id
+//     order by coalesce(p.created_at, u.created_at) desc;
+//   end; $$;
+//   grant execute on function public.admin_list_all_users() to authenticated;
 export async function fetchAllUsers(): Promise<UserSummary[]> {
   if (!isSupabaseConfigured) return MOCK_USERS
-  const { data, error } = await supabase
-    .from('user_profiles')
-    .select('id, full_name, email, specialty, plan, plan_seleccionado, subscription_status, consultations_used, consultations_limit, trial_start_at, trial_end_at, created_at')
-    .order('created_at', { ascending: false })
+  const { data, error } = await supabase.rpc('admin_list_all_users')
   if (error) {
-    console.error('[Dictia] fetchAllUsers:', error.message)
+    console.error('[Dictia] fetchAllUsers (RPC admin_list_all_users):', error.message)
     return MOCK_USERS
   }
+  console.log('[Dictia] fetchAllUsers: filas recibidas (auth.users LEFT JOIN user_profiles):', data?.length ?? 0)
   return (data as UserSummary[]) ?? []
 }
 
-export async function updateUserPlan(userId: string, plan: string): Promise<void> {
+// El usuario puede no tener fila en user_profiles todavía (ver fetchAllUsers/
+// admin_list_all_users) — un simple update() en ese caso afectaría 0 filas y el
+// cambio de plan fallaría en silencio. Por eso: intenta UPDATE primero (no toca
+// full_name si ya existe); si 0 filas fueron afectadas, crea la fila con INSERT
+// usando el email como base del nombre. email es obligatorio porque la columna
+// es NOT NULL y se necesita para crear la fila si no existe.
+export async function updateUserPlan(userId: string, plan: string, email: string): Promise<void> {
   if (!isSupabaseConfigured) return
-  const { error } = await supabase.from('user_profiles').update({
+  const patch = {
     plan_seleccionado: plan,
     plan,
     subscription_status: 'active',
     consultations_limit: PLAN_LIMITS[plan] ?? 250,
-  }).eq('id', userId)
-  if (error) console.error('[Dictia] updateUserPlan:', error.message)
+  }
+  const { data, error } = await supabase.from('user_profiles').update(patch).eq('id', userId).select('id')
+  if (error) { console.error('[Dictia] updateUserPlan (update):', error.message); return }
+  if ((data?.length ?? 0) > 0) return
+
+  // No existing row — create it now
+  const { error: insertError } = await supabase.from('user_profiles').insert({
+    id: userId,
+    email,
+    full_name: email.split('@')[0],
+    ...patch,
+  })
+  if (insertError) console.error('[Dictia] updateUserPlan (insert fallback):', insertError.message)
 }
 
 export async function grantFreeAccess(userId: string): Promise<void> {

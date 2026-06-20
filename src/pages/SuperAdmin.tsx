@@ -119,7 +119,7 @@ export default function SuperAdmin() {
   const newThisWeek   = users.filter(u => new Date(u.created_at) > new Date(Date.now() - 7 * 86400000)).length
   const estimatedRevenue = users
     .filter(u => u.subscription_status === 'active')
-    .reduce((s, u) => s + (PLAN_PRICES_COP[u.plan_seleccionado ?? u.plan] ?? 0), 0)
+    .reduce((s, u) => s + (PLAN_PRICES_COP[u.plan_seleccionado ?? u.plan ?? ''] ?? 0), 0)
 
   const totalCredits     = clinicas.reduce((s, c) => s + c.creditos_totales, 0)
   const totalUsedCredits = clinicas.reduce((s, c) => s + (c.creditos_totales - c.creditos_disponibles), 0)
@@ -128,9 +128,11 @@ export default function SuperAdmin() {
   // ── Actions ───────────────────────────────────────────────────────────────────
   async function applyPlan(userId: string) {
     const plan = planMap[userId] ?? 'standard'
+    const target = users.find(u => u.id === userId)
+    if (!target) return
     setUpdatingId(userId)
     try {
-      await updateUserPlan(userId, plan)
+      await updateUserPlan(userId, plan, target.email)
       setUsers(prev => prev.map(u => u.id === userId
         ? { ...u, plan_seleccionado: plan, plan, subscription_status: 'active', consultations_limit: plan === 'gratis' ? 999999 : u.consultations_limit } : u))
     } finally { setUpdatingId(null) }
@@ -218,6 +220,9 @@ export default function SuperAdmin() {
                       {users.map(u => {
                         const st = STATUS_MAP[u.subscription_status ?? ''] ?? { label: u.subscription_status ?? '—', cls: 'bg-slate-100 text-slate-500' }
                         const busy = updatingId === u.id
+                        const initials = u.full_name
+                          ? u.full_name.split(' ').map(n => n[0]).filter(Boolean).slice(0, 2).join('')
+                          : (u.email || '?').split('@')[0].slice(0, 2)
                         return (
                           <tr key={u.id} className="hover:bg-slate-50 transition-colors">
 
@@ -225,8 +230,8 @@ export default function SuperAdmin() {
                             <td className="px-5 py-4">
                               <div className="flex items-center gap-3">
                                 <div className="w-9 h-9 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
-                                  <span className="text-xs font-bold text-primary-700">
-                                    {(u.full_name || '?').split(' ').map(n => n[0]).slice(0, 2).join('')}
+                                  <span className="text-xs font-bold text-primary-700 uppercase">
+                                    {initials}
                                   </span>
                                 </div>
                                 <div>

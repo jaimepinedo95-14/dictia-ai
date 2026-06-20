@@ -80,7 +80,7 @@ export default function AdminDashboard() {
   const filteredUsers = search.trim()
     ? users.filter(u => {
         const q = search.toLowerCase()
-        return u.full_name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+        return (u.full_name ?? '').toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
       })
     : users
 
@@ -95,8 +95,10 @@ export default function AdminDashboard() {
 
   async function applyPlan(userId: string) {
     const plan = planMap[userId] ?? 'standard'
+    const target = users.find(u => u.id === userId)
+    if (!target) return
     setBusyId(userId)
-    await updateUserPlan(userId, plan)
+    await updateUserPlan(userId, plan, target.email)
     await reloadUsers()
     Analytics.planActivado(plan, userId)
     setBusyId(null)
@@ -104,9 +106,11 @@ export default function AdminDashboard() {
   }
 
   async function handlePlanChange(userId: string, plan: string) {
+    const target = users.find(u => u.id === userId)
+    if (!target) return
     setPlanMap(prev => ({ ...prev, [userId]: plan }))
     setBusyId(userId + '_plan')
-    await updateUserPlan(userId, plan)
+    await updateUserPlan(userId, plan, target.email)
     await reloadUsers()
     Analytics.planActivado(plan, userId)
     setBusyId(null)
@@ -137,8 +141,8 @@ export default function AdminDashboard() {
     flashSaved(userId + '_react')
   }
 
-  async function applyDelete(userId: string, name: string) {
-    if (!confirm(`¿Eliminar permanentemente a ${name}? No se puede deshacer.`)) return
+  async function applyDelete(userId: string, name: string | null) {
+    if (!confirm(`¿Eliminar permanentemente a ${name || 'este usuario'}? No se puede deshacer.`)) return
     setBusyId(userId + '_del')
     await deleteUser(userId)
     await reloadUsers()
@@ -150,8 +154,11 @@ export default function AdminDashboard() {
     setTimeout(() => setSavedId(null), 1800)
   }
 
-  const initials = (name: string) =>
-    name.split(' ').map(n => n[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()
+  const initials = (name: string | null, email: string) =>
+    (name
+      ? name.split(' ').map(n => n[0]).filter(Boolean).slice(0, 2).join('')
+      : email.split('@')[0].slice(0, 2)
+    ).toUpperCase()
 
   // ── Sidebar ───────────────────────────────────────────────────────────────────
   const sidebar = (
@@ -367,10 +374,10 @@ export default function AdminDashboard() {
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-9 h-9 rounded-full bg-primary-100 flex items-center justify-center shrink-0">
-                            <span className="text-xs font-bold text-primary-700">{initials(u.full_name)}</span>
+                            <span className="text-xs font-bold text-primary-700">{initials(u.full_name, u.email)}</span>
                           </div>
                           <div>
-                            <p className="font-semibold text-slate-900 leading-tight">{u.full_name}</p>
+                            <p className="font-semibold text-slate-900 leading-tight">{u.full_name || '(sin nombre)'}</p>
                             <p className="text-xs text-slate-400">{u.email}</p>
                           </div>
                         </div>
