@@ -271,12 +271,12 @@ export async function getMonthlyConsultationCount(userId: string): Promise<numbe
   return count ?? 0
 }
 
-export async function incrementConsultationsUsed(userId: string, currentCount: number): Promise<void> {
+export async function incrementConsultationsUsed(userId: string, currentCount: number, cost: number = 1): Promise<void> {
   if (!isSupabaseConfigured || !userId) return
 
   await supabase
     .from('user_profiles')
-    .update({ consultations_used: currentCount + 1 })
+    .update({ consultations_used: currentCount + cost })
     .eq('id', userId)
 }
 

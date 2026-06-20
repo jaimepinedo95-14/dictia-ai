@@ -19,7 +19,7 @@ type AuthContextType = {
   signOut: () => Promise<void>
   updateProfile: (data: Partial<UserProfile>) => Promise<void>
   canRecord: () => CanRecordResult
-  incrementConsultations: () => Promise<void>
+  incrementConsultations: (cost?: number) => Promise<void>
   cancelTrial: () => Promise<void>
   reactivateSubscription: () => Promise<void>
 }
@@ -311,11 +311,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await updateProfile({ subscription_status: 'pending', wompi_customer_id: null, card_registered_at: null })
   }
 
-  async function incrementConsultations() {
+  async function incrementConsultations(cost: number = 1) {
     if (!profile) return
-    const newCount = profile.consultations_used + 1
+    const newCount = profile.consultations_used + cost
     const isTrial = profile.subscription_status === 'trial' || profile.plan === 'free_trial'
-    const newNotesUsed = (profile.trial_notes_used ?? 0) + 1
+    const newNotesUsed = (profile.trial_notes_used ?? 0) + cost
     const notesLimit = profile.trial_notes_limit ?? 15
 
     const stateUpdate: Partial<UserProfile> = { consultations_used: newCount }
@@ -332,7 +332,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    await incrementConsultationsUsed(user?.id ?? '', profile.consultations_used)
+    await incrementConsultationsUsed(user?.id ?? '', profile.consultations_used, cost)
     if (isTrial) {
       const trialUpdate: Partial<UserProfile> = { trial_notes_used: newNotesUsed }
       if (newNotesUsed >= notesLimit) trialUpdate.subscription_status = 'expired'

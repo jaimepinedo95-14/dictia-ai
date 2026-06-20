@@ -327,15 +327,21 @@ export async function grantFreeAccess(userId: string): Promise<void> {
   if (error) console.error('[Dictia] grantFreeAccess:', error.message)
 }
 
+// Cuenta SOLO consultas 'approved' — debe coincidir con profile.consultations_used
+// (que solo se incrementa al aprobar, ver incrementConsultations en AuthContext) y
+// con fetchSavingsStats en db.ts (usado por el Dashboard del médico). Antes esta
+// función contaba TODAS las filas sin filtrar por status, lo que hacía que el
+// número del panel super admin no coincidiera con el del dashboard del médico
+// (incluía notas 'processing'/'discarded' que nunca consumieron un crédito real).
 export async function fetchNotesStats(): Promise<{ today: number; month: number; total: number }> {
   if (!isSupabaseConfigured) return { today: 3, month: 47, total: 312 }
   const now = new Date()
   const todayStr = now.toISOString().split('T')[0]
   const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
   const [t, m, all] = await Promise.all([
-    supabase.from('consultations').select('*', { count: 'exact', head: true }).gte('created_at', `${todayStr}T00:00:00`),
-    supabase.from('consultations').select('*', { count: 'exact', head: true }).gte('created_at', firstOfMonth),
-    supabase.from('consultations').select('*', { count: 'exact', head: true }),
+    supabase.from('consultations').select('*', { count: 'exact', head: true }).eq('status', 'approved').gte('created_at', `${todayStr}T00:00:00`),
+    supabase.from('consultations').select('*', { count: 'exact', head: true }).eq('status', 'approved').gte('created_at', firstOfMonth),
+    supabase.from('consultations').select('*', { count: 'exact', head: true }).eq('status', 'approved'),
   ])
   return { today: t.count ?? 0, month: m.count ?? 0, total: all.count ?? 0 }
 }
@@ -468,6 +474,7 @@ export async function fetchMonthlyConsultationCounts(): Promise<Record<string, n
   const { data, error } = await supabase
     .from('consultations')
     .select('user_id')
+    .eq('status', 'approved')
     .gte('created_at', firstOfMonth)
   if (error) {
     console.error('[Dictia] fetchMonthlyConsultationCounts:', error.message)

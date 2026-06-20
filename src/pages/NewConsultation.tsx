@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import {
   Mic, Square, CheckCircle, Copy, Edit3, Trash2, AlertTriangle,
   ChevronDown, ChevronUp, Zap, RefreshCw, MicOff, Pill, Wifi, Shield,
-  MessageCircle, BookOpen, Send, Monitor, X, Globe, Smartphone, Usb,
+  MessageCircle, BookOpen, Send, Monitor, X, Globe, Smartphone, Usb, FileText,
 } from 'lucide-react'
 import AppShell from '../components/AppShell'
 import { useAuth } from '../contexts/AuthContext'
@@ -1311,9 +1311,13 @@ export default function NewConsultation() {
         } catch { /* ignore storage errors */ }
       }
 
-      // Deduct credits for institutional users
+      // Nota de evolución cuesta 0.5 — aplica tanto al crédito institucional (clínicas)
+      // como al contador de plan individual (consultations_used / trial_notes_used).
+      // Antes solo se descontaba para usuarios de clínica; los planes individuales
+      // siempre restaban 1 completo sin importar el tipo de nota.
+      const creditCost = noteType === 'evolucion' ? 0.5 : 1
+
       if (profile?.clinica_id) {
-        const creditCost = noteType === 'evolucion' ? 0.5 : 1
         const desc = noteType === 'evolucion'
           ? `Nota de evolución — ${profile.full_name}`
           : noteType === 'traslado'
@@ -1325,7 +1329,7 @@ export default function NewConsultation() {
         if (remaining / total < 0.2) setLowCreditWarning(true)
       }
 
-      await incrementConsultations()
+      await incrementConsultations(creditCost)
       Analytics.notaAprobada(noteType, (specialtyOverride || profile?.specialty) ?? null)
       const text = formatNoteForClipboard(note)
       await navigator.clipboard.writeText(text).catch(() => {})
@@ -1403,13 +1407,15 @@ export default function NewConsultation() {
   const quickSummary = note ? buildQuickSummary(note) : null
 
   const AdditionalContextField = () => (
-    <div className="w-full max-w-md mx-auto text-left">
-      <label className="label text-center">Contexto adicional (opcional)</label>
+    <div className="w-full max-w-md mx-auto text-left rounded-2xl border-2 border-primary-100 bg-primary-50/30 p-3">
+      <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary-700 mb-2">
+        <FileText size={13} /> Contexto adicional (opcional)
+      </label>
       <textarea
         value={additionalContext}
         onChange={e => setAdditionalContext(e.target.value)}
         placeholder="Agrega antecedentes, resultados de paraclínicos, nota anterior, instrucciones específicas..."
-        className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-transparent transition-all text-sm leading-relaxed resize-none"
+        className="w-full px-3 py-2.5 rounded-xl border border-primary-200 bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-transparent transition-all text-sm leading-relaxed resize-none"
         rows={4}
         maxLength={20000}
       />

@@ -196,6 +196,11 @@ create table public.user_profiles (
 -- Para usuarios existentes que ya estaban activos antes de este sistema:
 -- update public.user_profiles set subscription_status = 'active' where created_at < '2026-06-14';
 
+-- Notas de evolución cuestan 0.5 (vs 1 de las demás) — consultations_used y
+-- trial_notes_used deben aceptar decimales o el incremento de 0.5 fallará/truncará:
+-- alter table public.user_profiles alter column consultations_used type numeric;
+-- alter table public.user_profiles alter column trial_notes_used type numeric;
+
 create table public.consultations (
   id uuid default gen_random_uuid() primary key,
   user_id uuid references public.user_profiles(id) on delete cascade not null,
