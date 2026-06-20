@@ -38,7 +38,6 @@ export type UserProfile = {
   email: string
   country: string
   specialty: string
-  gender?: 'doctor' | 'doctora'
   plan: 'free_trial' | 'basic' | 'standard' | 'advanced' | 'pro'
   consultations_used: number
   consultations_limit: number

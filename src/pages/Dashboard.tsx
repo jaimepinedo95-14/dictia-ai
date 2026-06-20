@@ -158,7 +158,7 @@ export default function Dashboard() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <p className="text-slate-500 text-sm">
-              {greeting}, {profile?.gender === 'doctora' ? 'Doctora' : 'Doctor'}
+              {greeting}, Doctor(a)
             </p>
             <h1 className="text-2xl font-bold text-slate-900">{profile?.full_name ?? ''}</h1>
             {profile?.specialty && (
