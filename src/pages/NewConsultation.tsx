@@ -10,7 +10,7 @@ import { useAuth } from '../contexts/AuthContext'
 import {
   transcribeAudio, generateSoapNote, formatNoteForClipboard,
   isGroqConfigured, isAnthropicConfigured, askAboutNote, generateClinicalEvidence,
-  searchGuidelinesWithWeb,
+  searchGuidelinesWithWeb, hasInsufficientClinicalContent, detectSuggestedNoteType,
   type ClinicalAnalysis,
 } from '../lib/api'
 import { saveConsultation, fetchRecentApprovedNotes, createPendingConsultation, approveConsultation, discardConsultation } from '../lib/db'
@@ -18,7 +18,7 @@ import { fetchClinicCredits, deductClinicCredit } from '../lib/adminDb'
 import type { SoapNote, NoteType } from '../lib/supabase'
 import { Analytics } from '../lib/analytics'
 
-type Stage = 'idle' | 'recording' | 'processing' | 'done' | 'error'
+type Stage = 'idle' | 'recording' | 'processing' | 'confirm_type' | 'done' | 'error'
 type ProcessingStep = 'transcribing' | 'generating' | null
 type RecordingMode = 'consulta' | 'dictado'
 
@@ -41,7 +41,9 @@ const SECTIONS_BEFORE_DX: SoapSection[] = [
   { key: 'chief_complaint', label: 'Motivo de consulta', icon: '🎯', multiline: false, placeholder: 'No registrado' },
   { key: 'current_illness', label: 'Enfermedad actual', icon: '📋', multiline: true, placeholder: 'No registrado' },
   { key: 'relevant_history', label: 'Antecedentes relevantes', icon: '📁', multiline: true, placeholder: 'No se mencionaron antecedentes' },
+  { key: 'review_of_systems', label: 'Revisión por sistemas', icon: '🔎', multiline: true, placeholder: 'No referido', alwaysShow: true },
   { key: 'physical_exam', label: 'Examen físico', icon: '🩺', multiline: true, placeholder: 'No evaluado durante la consulta — completa manualmente', alwaysShow: true },
+  { key: 'paraclinical_results', label: 'Paraclínicos', icon: '🧪', multiline: true, placeholder: 'No referido', alwaysShow: true },
   { key: 'analysis', label: 'Análisis', icon: '🧠', multiline: true, placeholder: 'No registrado' },
 ]
 
@@ -69,6 +71,39 @@ const TRANSFER_SECTIONS: SoapSection[] = [
   { key: 'analysis', label: 'Impresión diagnóstica', icon: '🧠', multiline: true, placeholder: 'No registrado' },
   { key: 'management_plan', label: 'Plan en el servicio actual', icon: '📋', multiline: true, placeholder: 'Sin plan registrado' },
 ]
+
+// ─── Quick summary (Mejora 4) ──────────────────────────────────────────────────
+// Extrae 3 datos clave de la nota YA generada (sin llamada extra a la IA) para
+// que el médico pueda verificar de un vistazo que la nota está correcta.
+function extractLabeledLine(text: string, label: string): string | null {
+  const re = new RegExp(`${label}\\s*:\\s*(.+)`, 'i')
+  for (const line of text.split('\n')) {
+    const m = line.match(re)
+    if (m && m[1].trim()) return m[1].trim()
+  }
+  return null
+}
+
+function buildQuickSummary(note: SoapNote): { diagnosis: string; medication: string; discharge: string } {
+  const diagnosisSource = note.diagnosis || note.active_diagnoses || ''
+  const diagnosis = diagnosisSource.split('\n')[0].replace(/^[-\d.\s]+/, '').trim() || 'No determinado'
+
+  const plan = note.management_plan || ''
+  let medication = extractLabeledLine(plan, 'Medicamentos')
+  if (medication) medication = medication.split(/\n/)[0].split(/[,;]/)[0].trim()
+  if (!medication && note.pharma_suggestions && note.pharma_suggestions.length > 0) {
+    const s = note.pharma_suggestions[0]
+    medication = `${s.nombre_generico}${s.dosis ? ' ' + s.dosis : ''}`
+  }
+
+  const discharge = extractLabeledLine(plan, 'Conducta de egreso')
+
+  return {
+    diagnosis,
+    medication: medication || 'No referido',
+    discharge: discharge || 'No referido',
+  }
+}
 
 // ─── SoapCard ─────────────────────────────────────────────────────────────────
 type SoapCardProps = {
@@ -725,6 +760,7 @@ export default function NewConsultation() {
   const [note, setNote] = useState<SoapNote | null>(null)
   const [error, setError] = useState('')
   const [noMicDetected, setNoMicDetected] = useState(false)
+  const [suggestedNoteType, setSuggestedNoteType] = useState<NoteType | null>(null)
   const [editingKey, setEditingKey] = useState<keyof SoapNote | null>(null)
   const [editValue, setEditValue] = useState('')
   const [expandedSection, setExpandedSection] = useState<keyof SoapNote | null>(null)
@@ -1119,8 +1155,26 @@ export default function NewConsultation() {
         setProcessingStep(null)
         return
       }
+      if (hasInsufficientClinicalContent(fullTranscript)) {
+        setTranscript(fullTranscript)
+        setEmptyTranscript(true)
+        setError('La grabación no captó suficiente contenido clínico. ¿Deseas intentarlo de nuevo?')
+        setStage('error')
+        setProcessingStep(null)
+        return
+      }
       setTranscript(fullTranscript)
       Analytics.consultaGrabada(recordingDurationRef.current, noteType)
+
+      const suggestion = (noteType === 'evolucion' || noteType === 'traslado')
+        ? null // ya viene de un selector explícito con contexto previo recolectado — no sugerir cambio aquí
+        : detectSuggestedNoteType(fullTranscript, noteType)
+      if (suggestion) {
+        setSuggestedNoteType(suggestion)
+        setStage('confirm_type')
+        setProcessingStep(null)
+        return
+      }
       await processTranscript(fullTranscript)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Error al procesar el audio'
@@ -1130,7 +1184,8 @@ export default function NewConsultation() {
     }
   }
 
-  async function processTranscript(transcriptText: string) {
+  async function processTranscript(transcriptText: string, noteTypeOverride?: NoteType) {
+    const effectiveType = noteTypeOverride ?? noteType
     setError('')
     setProcessingStep('generating')
     const MAX_ATTEMPTS = 3
@@ -1140,24 +1195,24 @@ export default function NewConsultation() {
         const generatedNote = await generateSoapNote(transcriptText, {
           specialty: (specialtyOverride || profile?.specialty) ?? undefined,
           noteStyle: profile?.note_style,
-          noteType,
-          isTelemedicine: noteType === 'telemedicina',
+          noteType: effectiveType,
+          isTelemedicine: effectiveType === 'telemedicina',
           recentNotes: recentNotes.length > 0 ? recentNotes : undefined,
           previousContext: previousContext || undefined,
-          hospitalizationDay: noteType === 'evolucion' ? hospitalizationDay : undefined,
+          hospitalizationDay: effectiveType === 'evolucion' ? hospitalizationDay : undefined,
           isDictation: recordingMode === 'dictado',
         })
         setNote(generatedNote)
         setTranscript('')
         setStage('done')
         setProcessingStep(null)
-        Analytics.notaGenerada(noteType, (specialtyOverride || profile?.specialty) ?? null)
+        Analytics.notaGenerada(effectiveType, (specialtyOverride || profile?.specialty) ?? null)
         // Auto-save as pending — ID stored for approve/discard
         consultationIdRef.current = null
         console.log('[Dictia] auto-save iniciando, consultationIdRef reset a null')
         createPendingConsultation(user?.id ?? '', {
           recording_duration: recordingDurationRef.current,
-          note_type: noteType,
+          note_type: effectiveType,
           specialty: (specialtyOverride || profile?.specialty) ?? null,
           note_content: generatedNote,
         }).then(id => {
@@ -1183,6 +1238,14 @@ export default function NewConsultation() {
         setProcessingStep(null)
       }
     }
+  }
+
+  async function confirmNoteType(accept: boolean) {
+    const finalType = accept && suggestedNoteType ? suggestedNoteType : noteType
+    if (accept && suggestedNoteType) setNoteType(suggestedNoteType)
+    setSuggestedNoteType(null)
+    setStage('processing')
+    await processTranscript(transcript, finalType)
   }
 
   async function retryProcessing() {
@@ -1347,6 +1410,7 @@ export default function NewConsultation() {
 
   const isEvolution = note?.note_type === 'evolucion'
   const isTransfer = note?.note_type === 'traslado'
+  const quickSummary = note ? buildQuickSummary(note) : null
 
   return (
     <AppShell>
@@ -1362,6 +1426,7 @@ export default function NewConsultation() {
                 ? 'Procesando audio...'
                 : 'Generando nota médica...'
             )}
+            {stage === 'confirm_type' && 'Confirma el tipo de nota antes de generarla'}
             {stage === 'done' && 'Nota generada — revisa y aprueba'}
             {stage === 'error' && 'Ocurrió un error al procesar'}
           </p>
@@ -1773,6 +1838,33 @@ export default function NewConsultation() {
           </div>
         )}
 
+        {/* ── Confirm auto-detected note type ── */}
+        {stage === 'confirm_type' && suggestedNoteType && (
+          <div className="card border-2 border-sky-200 bg-sky-50 py-8 text-center space-y-4">
+            <div className="w-16 h-16 bg-sky-100 rounded-2xl flex items-center justify-center mx-auto text-2xl">
+              🔎
+            </div>
+            <div>
+              <h3 className="font-bold text-sky-900 text-lg">Detectamos un posible tipo de nota distinto</h3>
+              <p className="text-sky-700 text-sm mt-2 max-w-sm mx-auto leading-relaxed">
+                Por el contenido de la grabación, esto parece ser{' '}
+                <strong>{NOTE_TYPE_OPTIONS.find(o => o.type === suggestedNoteType)?.label ?? suggestedNoteType}</strong>
+                {' '}en vez de{' '}
+                <strong>{NOTE_TYPE_OPTIONS.find(o => o.type === noteType)?.label ?? noteType}</strong>
+                {' '}(el tipo que seleccionaste). ¿Quieres cambiarlo antes de generar la nota?
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3 justify-center">
+              <button onClick={() => confirmNoteType(true)} className="btn-primary text-sm py-2.5 px-5">
+                Sí, cambiar a {NOTE_TYPE_OPTIONS.find(o => o.type === suggestedNoteType)?.label ?? suggestedNoteType}
+              </button>
+              <button onClick={() => confirmNoteType(false)} className="btn-ghost text-sm py-2.5 px-5 border border-slate-200">
+                No, mantener {NOTE_TYPE_OPTIONS.find(o => o.type === noteType)?.label ?? noteType}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* ── No microphone detected ── */}
         {stage === 'error' && noMicDetected && (
           <div className="card border-2 border-amber-200 bg-amber-50 py-8 text-center space-y-4">
@@ -1815,9 +1907,7 @@ export default function NewConsultation() {
                 {emptyTranscript ? 'No se detectó audio suficiente' : 'Error al procesar la consulta'}
               </h3>
               <p className="text-red-600 text-sm mt-2 max-w-sm mx-auto leading-relaxed">
-                {emptyTranscript
-                  ? 'No se captó voz en la grabación. Verifica el micrófono o dicta el caso manualmente.'
-                  : error}
+                {error || 'No se captó voz en la grabación. Verifica el micrófono o dicta el caso manualmente.'}
               </p>
             </div>
             <div className="flex flex-wrap gap-3 justify-center">
@@ -1893,6 +1983,24 @@ export default function NewConsultation() {
                   "{transcript}"
                 </div>
               </details>
+            )}
+
+            {/* Quick summary — Mejora 4 */}
+            {quickSummary && (
+              <div className="bg-slate-900 text-white rounded-2xl px-5 py-4 grid sm:grid-cols-3 gap-4">
+                <div>
+                  <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1">Diagnóstico principal</p>
+                  <p className="text-sm font-semibold leading-snug">{quickSummary.diagnosis}</p>
+                </div>
+                <div>
+                  <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1">Medicamento principal</p>
+                  <p className="text-sm font-semibold leading-snug">{quickSummary.medication}</p>
+                </div>
+                <div>
+                  <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1">Conducta de egreso</p>
+                  <p className="text-sm font-semibold leading-snug">{quickSummary.discharge}</p>
+                </div>
+              </div>
             )}
 
             {/* ── TRANSFER NOTE LAYOUT ── */}
