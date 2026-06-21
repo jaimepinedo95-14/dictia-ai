@@ -2207,7 +2207,7 @@ export default function NewConsultation() {
                     >
                       <div className="flex items-center gap-2">
                         <Pill size={16} className="text-blue-500" />
-                        <span className="text-sm font-bold text-slate-700">Sugerencias farmacológicas</span>
+                        <span className="text-sm font-bold text-slate-700">💊 Sugerencia de Dictia AI</span>
                         <span className="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-medium">
                           {note.pharma_suggestions.length} medicamentos
                         </span>
